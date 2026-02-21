@@ -10,7 +10,6 @@ class AuthResponse {
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    // Handle cases where Laravel wraps the response in a 'data' or 'user' key
     final Map<String, dynamic> data =
         json.containsKey('data') && json['data'] is Map<String, dynamic>
         ? json['data']
@@ -32,6 +31,12 @@ class AuthResponse {
           : User(id: 0, name: 'User', email: '', username: '', role: 'user'),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'access_token': accessToken,
+    'token_type': tokenType,
+    'user': user.toJson(),
+  };
 }
 
 class User {
@@ -63,16 +68,43 @@ class User {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'username': username,
+    'role': role,
+    if (profile != null) 'profile': profile!.toJson(),
+  };
 }
 
 class Profile {
   final int id;
   final int userId;
-  // Add other profile fields if needed
+  final String? profileImage;
+  final String? bio;
 
-  Profile({required this.id, required this.userId});
+  Profile({
+    required this.id,
+    required this.userId,
+    this.profileImage,
+    this.bio,
+  });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
-    return Profile(id: json['id'], userId: json['user_id']);
+    return Profile(
+      id: json['id'] ?? 0,
+      userId: json['user_id'] ?? 0,
+      profileImage: json['profile_image'] ?? json['avatar'] ?? json['image'],
+      bio: json['bio'],
+    );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'user_id': userId,
+    if (profileImage != null) 'profile_image': profileImage,
+    if (bio != null) 'bio': bio,
+  };
 }

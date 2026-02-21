@@ -8,6 +8,8 @@ class DashboardCard extends StatelessWidget {
   final String? timeLeft;
   final List<String>? images;
   final IconData icon;
+  final double width;
+  final double? height;
 
   const DashboardCard({
     super.key,
@@ -18,16 +20,27 @@ class DashboardCard extends StatelessWidget {
     required this.icon,
     this.timeLeft,
     this.images,
+    this.width = 300,
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 300,
-      padding: const EdgeInsets.all(20),
+      width: width,
+      height: height,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFD3D3D3), // Grey background from screenshot
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,18 +58,20 @@ class DashboardCard extends StatelessWidget {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: 12,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white70,
+                  color: const Color(0xFF23393E).withAlpha(10),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  status,
+                  status.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF23393E),
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),

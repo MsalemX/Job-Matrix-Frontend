@@ -2,152 +2,155 @@ import 'package:flutter/material.dart';
 import 'widgets/sidebar.dart';
 import 'widgets/header.dart';
 import 'widgets/dashboard_card.dart';
+import '../Projects/widgets/create_project_dialog.dart';
+import '../../services/api_service.dart';
+import '../../models/user_model.dart';
+import '../../models/project_model.dart';
+import '../../models/task_model.dart';
+import '../Projects/projects_screen.dart';
 
-class UserDashboardScreen extends StatelessWidget {
+class UserDashboardScreen extends StatefulWidget {
   const UserDashboardScreen({super.key});
+
+  @override
+  State<UserDashboardScreen> createState() => _UserDashboardScreenState();
+}
+
+class _UserDashboardScreenState extends State<UserDashboardScreen> {
+  User? _user;
+  List<ProjectModel> _projects = [];
+  List<TaskModel> _tasks = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    final results = await Future.wait([
+      ApiService.getMyProfile(),
+      ApiService.getMyProjects(),
+    ]);
+
+    final user = results[0] as User?;
+    final projects = results[1] as List<ProjectModel>;
+
+    // Load tasks from all projects
+    List<TaskModel> allTasks = [];
+    for (final project in projects) {
+      final sections = await ApiService.getSections(project.id);
+      for (final section in sections) {
+        allTasks.addAll(section.tasks);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _user = user;
+        _projects = projects;
+        _tasks = allTasks;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA), // Subtle light gray background
       body: Row(
         children: [
-          const Sidebar(),
+          const Sidebar(currentRoute: 'dashboard'),
           Expanded(
             child: Column(
               children: [
-                const Header(),
+                Header(onProjectCreated: _loadData),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Welcome back, MsalemX',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF23393E),
                           ),
-                        ),
-                        const Text(
-                          'You have 12 active projects and 4 tasks.',
-                          style: TextStyle(fontSize: 16, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 48),
-
-                        _buildSectionHeader('My Projects'),
-                        const SizedBox(height: 20),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: const [
-                              DashboardCard(
-                                title: 'Marketing Website Revamp',
-                                subtitle:
-                                    'Complete redesign of the corporate marketing assets for Q4 product launches.',
-                                status: 'In Progress',
-                                progress: 0.75,
-                                icon: Icons.rocket_launch,
-                                timeLeft: '3 days left',
-                              ),
-                              SizedBox(width: 20),
-                              DashboardCard(
-                                title: 'Mobile App V2.0',
-                                subtitle:
-                                    'Prototyping and wireframing for the next major release of the mobile application.',
-                                status: 'Planning',
-                                progress: 0.12,
-                                icon: Icons.phone_android,
-                                timeLeft: '1 week left',
-                              ),
-                              SizedBox(width: 20),
-                              DashboardCard(
-                                title: 'Quarterly Report Q3',
-                                subtitle:
-                                    'Final performance review and statistical data aggregation for the third quarter.',
-                                status: 'Completed',
-                                progress: 1.0,
-                                icon: Icons.assignment,
-                                timeLeft: 'Closed',
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 48),
-                        _buildSectionHeader('Joined Projects'),
-                        const SizedBox(height: 20),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const DashboardCard(
-                                title: 'UX Research Phase',
-                                subtitle:
-                                    'User testing and interview sessions for the new onboarding flow.',
-                                status: 'In Progress',
-                                progress: 0.45,
-                                icon: Icons.edit,
-                                timeLeft: '12',
+                              Text(
+                                'Welcome back, ${_user?.name ?? 'User'}',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
                               ),
-                              const SizedBox(width: 20),
-                              const DashboardCard(
-                                title: 'API Integration',
-                                subtitle:
-                                    'Connecting third-party logistics data streams to the main dashboard.',
-                                status: 'In Progress',
-                                progress: 0.88,
-                                icon: Icons.api,
-                                timeLeft: 'Due Today',
+                              Text(
+                                'You have ${_projects.length} project${_projects.length != 1 ? 's' : ''} and ${_tasks.length} task${_tasks.length != 1 ? 's' : ''}.',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black54,
+                                ),
                               ),
-                              const SizedBox(width: 20),
-                              _buildCreateNewCard(),
-                            ],
-                          ),
-                        ),
+                              const SizedBox(height: 48),
 
-                        const SizedBox(height: 48),
-                        _buildSectionHeader('My Tasks'),
-                        const SizedBox(height: 20),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: const [
-                              DashboardCard(
-                                title:
-                                    'Migrating Servers to a Cloud Environment',
-                                subtitle:
-                                    'Analyzing requirements and choosing the most suitable cloud service provider.',
-                                status: 'In Progress',
-                                progress: 0.75,
-                                icon: Icons.rocket_launch,
+                              // --- My Projects Section ---
+                              _buildSectionHeader(
+                                'My Projects',
+                                onViewAll: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const ProjectsScreen(),
+                                    ),
+                                  );
+                                },
+                                action: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const ProjectsScreen(
+                                          filterVisibility: 'public',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.explore_outlined,
+                                    size: 16,
+                                  ),
+                                  label: const Text('Explore Public Projects'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF23393E),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
                               ),
-                              SizedBox(width: 20),
-                              DashboardCard(
-                                title: 'API Development',
-                                subtitle:
-                                    'Building and documenting API endpoints for user and product services.',
-                                status: 'Planning',
-                                progress: 0.12,
-                                icon: Icons.code,
-                              ),
-                              SizedBox(width: 20),
-                              DashboardCard(
-                                title: 'Launch of the Q1 Advertising Campaign',
-                                subtitle:
-                                    'The marketing campaign has been launched across digital platforms.',
-                                status: 'Completed',
-                                progress: 1.0,
-                                icon: Icons.campaign,
-                              ),
+                              const SizedBox(height: 20),
+                              _buildProjectsRow(),
+
+                              const SizedBox(height: 48),
+
+                              // --- My Tasks Section ---
+                              _buildSectionHeader('My Tasks'),
+                              const SizedBox(height: 20),
+                              _buildTasksRow(),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -157,61 +160,232 @@ class UserDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildProjectsRow() {
+    if (_projects.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.folder_open_outlined,
+        title: 'No projects yet',
+        subtitle: 'Create your first project to get started!',
+      );
+    }
+
+    final List<IconData> icons = [
+      Icons.rocket_launch,
+      Icons.phone_android,
+      Icons.assignment,
+      Icons.code,
+      Icons.api,
+      Icons.campaign,
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._projects.map((project) {
+            final iconIndex = project.id % icons.length;
+            return Padding(
+              padding: const EdgeInsets.only(right: 24),
+              child: DashboardCard(
+                width: 320,
+                height: 280,
+                title: project.name,
+                subtitle: project.description.isNotEmpty
+                    ? project.description
+                    : 'No description',
+                status: project.visibility == 'public' ? 'Public' : 'Private',
+                progress: 0.0,
+                icon: icons[iconIndex],
+                timeLeft: '${project.participants.length} members',
+              ),
+            );
+          }),
+          _buildCreateNewCard(width: 320, height: 280),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTasksRow() {
+    if (_tasks.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.assignment_outlined,
+        title: 'No tasks yet',
+        subtitle: 'Tasks will appear here when you join projects.',
+        showCreateButton: false,
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _tasks.map((task) {
+          final isCompleted =
+              task.status == 'completed' || task.status == 'done';
+          return Padding(
+            padding: const EdgeInsets.only(right: 24),
+            child: DashboardCard(
+              width: 320,
+              height: 280,
+              title: task.name,
+              subtitle: task.description.isNotEmpty
+                  ? task.description
+                  : 'No description',
+              status: isCompleted ? 'Completed' : 'In Progress',
+              progress: isCompleted ? 1.0 : 0.5,
+              icon: isCompleted
+                  ? Icons.check_circle
+                  : Icons.assignment_outlined,
+              timeLeft: task.status,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    bool showCreateButton = true,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 13, color: Colors.black38),
+          ),
+          if (showCreateButton) ...[
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => CreateProjectDialog.show(
+                context,
+                onProjectCreated: _loadData,
+              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Create Project'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF23393E),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(
+    String title, {
+    VoidCallback? onViewAll,
+    Widget? action,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
           children: [
-            const Icon(Icons.stars, color: Colors.black87, size: 24),
+            const Icon(Icons.stars, color: Color(0xFF23393E), size: 24),
             const SizedBox(width: 12),
             Text(
               title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF23393E),
+              ),
             ),
           ],
         ),
-        TextButton(
-          onPressed: () {},
-          child: const Text(
-            'View All',
-            style: TextStyle(color: Colors.black54),
-          ),
+        Row(
+          children: [
+            if (action != null) action,
+            if (action != null) const SizedBox(width: 16),
+            TextButton(
+              onPressed: onViewAll ?? () {},
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildCreateNewCard() {
-    return Container(
-      width: 300,
-      height: 260, // approximate height of DashboardCard
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200, width: 2),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.add, color: Colors.black54, size: 32),
+  Widget _buildCreateNewCard({double width = 300, double height = 260}) {
+    return GestureDetector(
+      onTap: () =>
+          CreateProjectDialog.show(context, onProjectCreated: _loadData),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(5),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Start New Project',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.add, color: Colors.black54, size: 32),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Start New Project',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const Text(
+                'Need help? Invite your team',
+                style: TextStyle(color: Colors.black54, fontSize: 12),
+              ),
+            ],
           ),
-          const Text(
-            'Need help? Invite your team',
-            style: TextStyle(color: Colors.black54, fontSize: 12),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -1,13 +1,63 @@
 import 'package:flutter/material.dart';
+import '../../Calendar/calendar_screen.dart';
+import '../../Projects/projects_screen.dart';
+import '../../Tasks/tasks_screen.dart';
+import '../../Settings/settings_screen.dart';
+import '../../HelpCenter/help_center_screen.dart';
+import '../user_dashboard_screen.dart';
+import '../../Profile/profile_screen.dart';
 
 class Sidebar extends StatelessWidget {
-  const Sidebar({super.key});
+  final String currentRoute;
+
+  const Sidebar({super.key, required this.currentRoute});
+
+  void _navigateTo(BuildContext context, String route) {
+    if (route == currentRoute) return;
+
+    Widget target;
+    switch (route) {
+      case 'dashboard':
+        target = const UserDashboardScreen();
+        break;
+      case 'projects':
+        target = const ProjectsScreen();
+        break;
+      case 'tasks':
+        target = const TasksScreen();
+        break;
+      case 'calendar':
+        target = const CalendarScreen();
+        break;
+      case 'settings':
+        target = const SettingsScreen();
+        break;
+      case 'help':
+        target = const HelpCenterScreen();
+        break;
+      case 'profile':
+        target = const ProfileScreen();
+        break;
+      default:
+        target = const UserDashboardScreen(); // Fallback
+    }
+
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => target,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 240,
-      color: const Color(0xFF23393E), // Dark sidebar color from screenshot
+      color: const Color(0xFF23393E),
       child: Column(
         children: [
           const SizedBox(height: 24),
@@ -55,19 +105,46 @@ class Sidebar extends StatelessWidget {
           const SizedBox(height: 32),
           // Navigation Items
           _buildNavItem(
+            context,
             Icons.dashboard_outlined,
             'Dashboard',
-            isSelected: true,
+            route: 'dashboard',
           ),
-          _buildNavItem(Icons.folder_open_outlined, 'Projects'),
-          _buildNavItem(Icons.assignment_outlined, 'Tasks'),
-          _buildNavItem(Icons.calendar_month_outlined, 'Calender'),
+          _buildNavItem(
+            context,
+            Icons.folder_open_outlined,
+            'Projects',
+            route: 'projects',
+          ),
+          _buildNavItem(
+            context,
+            Icons.assignment_outlined,
+            'Tasks',
+            route: 'tasks',
+          ),
+          _buildNavItem(
+            context,
+            Icons.calendar_month_outlined,
+            'Calendar',
+            route: 'calendar',
+          ),
 
           const Spacer(),
 
           // Bottom Items
-          _buildNavItem(Icons.settings_outlined, 'Settings'),
-          _buildNavItem(Icons.help_outline, 'Help Center', isFullWidth: true),
+          _buildNavItem(
+            context,
+            Icons.settings_outlined,
+            'Settings',
+            route: 'settings',
+          ),
+          _buildNavItem(
+            context,
+            Icons.help_outline,
+            'Help Center',
+            route: 'help',
+            isFullWidth: true,
+          ),
           const SizedBox(height: 24),
         ],
       ),
@@ -75,11 +152,14 @@ class Sidebar extends StatelessWidget {
   }
 
   Widget _buildNavItem(
+    BuildContext context,
     IconData icon,
     String label, {
-    bool isSelected = false,
+    String? route,
     bool isFullWidth = false,
   }) {
+    final bool isSelected = route != null && route == currentRoute;
+
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isFullWidth ? 12 : 16,
@@ -92,12 +172,20 @@ class Sidebar extends StatelessWidget {
         ),
         child: ListTile(
           dense: true,
-          leading: Icon(icon, color: Colors.white70, size: 20),
+          leading: Icon(
+            icon,
+            color: isSelected ? Colors.white : Colors.white70,
+            size: 20,
+          ),
           title: Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white70,
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            ),
           ),
-          onTap: () {},
+          onTap: () => _navigateTo(context, route ?? ''),
         ),
       ),
     );

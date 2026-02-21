@@ -28,10 +28,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (response != null && mounted) {
-      final role = response.user.role.toLowerCase();
+      final role = response.user.role.toLowerCase().trim();
+      print('User role from server: $role');
 
       Widget nextScreen;
-      if (role == 'admin' || role == 'system admin') {
+      if (role == 'admin' || role == 'system_admin' || role == 'system admin') {
         nextScreen = const AdminDashboardScreen();
       } else {
         nextScreen = const UserDashboardScreen();

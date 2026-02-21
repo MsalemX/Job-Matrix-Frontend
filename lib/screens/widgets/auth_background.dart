@@ -13,7 +13,7 @@ class AuthBackground extends StatelessWidget {
           // Background Image
           Positioned.fill(
             child: Image.asset(
-              'assets/images/wallpaper.jpg.jpeg',
+              'assets/images/wallpaper.jpeg',
               fit: BoxFit.cover,
             ),
           ),
