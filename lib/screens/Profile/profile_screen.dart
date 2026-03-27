@@ -3,6 +3,7 @@ import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 import '../../services/api_service.dart';
 import '../../models/user_model.dart';
+import '../../models/task_model.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,6 +14,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   User? _user;
+  List<TaskModel> _assignedTasks = [];
+  List<TaskModel> _completedTasks = [];
   bool _isLoading = true;
 
   @override
@@ -24,9 +27,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final user = await ApiService.getMyProfile();
+    final allTasks = await ApiService.getMyTasks();
     if (mounted) {
       setState(() {
         _user = user;
+        _assignedTasks = allTasks
+            .where((t) => t.status != 'completed')
+            .toList();
+        _completedTasks = allTasks
+            .where((t) => t.status == 'completed')
+            .toList();
         _isLoading = false;
       });
     }
@@ -82,13 +92,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 children: [
                                   _buildTasksSection(
                                     'Assigned Tasks',
-                                    3,
+                                    _assignedTasks,
                                     'Active',
                                   ),
                                   const SizedBox(height: 32),
                                   _buildTasksSection(
                                     'Completed Tasks',
-                                    4,
+                                    _completedTasks,
                                     'Finished',
                                   ),
                                 ],
@@ -186,6 +196,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icons.location_on_outlined,
                             'Yemen-Mukalla',
                           ),
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withAlpha(40),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: Colors.amber.withAlpha(80)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.star_rounded,
+                                    color: Colors.amber, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${_user?.profile?.points ?? 0} pts',
+                                  style: const TextStyle(
+                                      color: Colors.amber,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -275,20 +310,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              _buildSkillBadge('Project Management', isSelected: true),
-              _buildSkillBadge('UI/UX Insight', isSelected: true),
-              _buildSkillBadge('Product Strategy', isSelected: true),
-              _buildSkillBadge('Agile/Scrum', isSecondary: true),
-              _buildSkillBadge('Team Leadership', isSecondary: true),
-              _buildSkillBadge('Risk Assessment', isSecondary: true),
-              _buildSkillBadge('Agile/Scrum', isSecondary: true),
-              _buildSkillBadge('Team Leadership', isSecondary: true),
-              _buildSkillBadge('Risk Assessment', isSecondary: true),
-              _buildSkillBadge('SQL', isTertiary: true),
-              _buildSkillBadge('Figma', isTertiary: true),
-              _buildSkillBadge('Jira', isTertiary: true),
-            ],
+            children: (_user?.profile?.skills ?? []).isEmpty
+                ? [
+                    const Text(
+                      'No skills added yet',
+                      style: TextStyle(color: Colors.black54, fontSize: 13),
+                    ),
+                  ]
+                : (_user?.profile?.skills ?? [])
+                      .map((skill) => _buildSkillBadge(skill, isSelected: true))
+                      .toList(),
           ),
         ],
       ),
@@ -299,7 +330,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String label, {
     bool isSelected = false,
     bool isSecondary = false,
-    bool isTertiary = false,
   }) {
     Color bg = const Color(0xFFB0B3AF);
     Color text = Colors.black87;
@@ -329,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTasksSection(String title, int count, String badge) {
+  Widget _buildTasksSection(String title, List<TaskModel> tasks, String badge) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -356,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '$count $badge',
+                '${tasks.length} $badge',
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -366,12 +396,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         const SizedBox(height: 24),
-        ...List.generate(count, (index) => _buildTaskCard(index == 0)),
+        if (tasks.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(48),
+            decoration: BoxDecoration(
+              color: const Color(0xFFCDD0CB),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 48,
+                  color: Colors.black26,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'No tasks yet',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...tasks.map(
+            (task) => _buildTaskCard(task, task.status != 'completed'),
+          ),
       ],
     );
   }
 
-  Widget _buildTaskCard(bool showProgress) {
+  Widget _buildTaskCard(TaskModel task, bool showProgress) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(24),
@@ -397,12 +457,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Marketing Website Revamp',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                Text(
+                  task.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
-                  'ROLE: LEAD STRATEGIST',
+                  'STATUS: ${task.status.toUpperCase().replaceAll('_', ' ')}',
                   style: TextStyle(
                     color: Colors.grey.shade700,
                     fontSize: 11,
@@ -413,30 +476,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           if (showProgress) ...[
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
+                const Text(
                   'STATUS',
                   style: TextStyle(fontSize: 10, color: Colors.black38),
                 ),
                 Text(
-                  'IN PROGRESS',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  task.status.toUpperCase().replaceAll('_', ' '),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
             const SizedBox(width: 32),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
+                const Text(
                   'PROGRESS',
                   style: TextStyle(fontSize: 10, color: Colors.black38),
                 ),
                 Text(
-                  '75%',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  '${task.progress}%',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),

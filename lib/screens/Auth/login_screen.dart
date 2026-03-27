@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:job_matrix_forntend/screens/widgets/auth_background.dart';
-import 'package:job_matrix_forntend/services/api_service.dart';
+import 'package:job_matrix_forntend/services/auth_provider.dart';
 import 'package:job_matrix_forntend/screens/Auth/register_screen.dart';
 import 'package:job_matrix_forntend/screens/Dashboard/user_dashboard_screen.dart';
 import 'package:job_matrix_forntend/screens/Dashboard/admin_dashboard_screen.dart';
@@ -15,20 +16,18 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _loginController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;
 
   Future<void> _handleLogin() async {
-    setState(() => _isLoading = true);
-
-    final response = await ApiService.login(
-      _loginController.text,
-      _passwordController.text,
+    final authProvider = context.read<AuthProvider>();
+    
+    final success = await authProvider.login(
+      _loginController.text.trim(),
+      _passwordController.text.trim(),
     );
 
-    setState(() => _isLoading = false);
-
-    if (response != null && mounted) {
-      final role = response.user.role.toLowerCase().trim();
+    if (success && mounted) {
+      final user = authProvider.user;
+      final role = user?.role.toLowerCase().trim() ?? 'user';
       print('User role from server: $role');
 
       Widget nextScreen;
@@ -60,6 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final isLoading = authProvider.isLoading;
+
     return AuthBackground(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -101,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleLogin,
+              onPressed: isLoading ? null : _handleLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF78909C),
                 foregroundColor: Colors.black87,
@@ -110,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: _isLoading
+              child: isLoading
                   ? const SizedBox(
                       height: 20,
                       width: 20,

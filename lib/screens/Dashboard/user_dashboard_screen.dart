@@ -8,6 +8,8 @@ import '../../models/user_model.dart';
 import '../../models/project_model.dart';
 import '../../models/task_model.dart';
 import '../Projects/projects_screen.dart';
+import '../Projects/project_detail_screen.dart';
+import '../Tasks/tasks_screen.dart';
 
 class UserDashboardScreen extends StatefulWidget {
   const UserDashboardScreen({super.key});
@@ -34,25 +36,23 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     final results = await Future.wait([
       ApiService.getMyProfile(),
       ApiService.getMyProjects(),
+      ApiService.getMyTasks(),
     ]);
 
     final user = results[0] as User?;
-    final projects = results[1] as List<ProjectModel>;
+    List<ProjectModel> projects = (results[1] ?? []) as List<ProjectModel>;
+    final tasks = (results[2] ?? []) as List<TaskModel>;
 
-    // Load tasks from all projects
-    List<TaskModel> allTasks = [];
-    for (final project in projects) {
-      final sections = await ApiService.getSections(project.id);
-      for (final section in sections) {
-        allTasks.addAll(section.tasks);
-      }
+    // Filter projects to only show user-created ones
+    if (user != null) {
+      projects = projects.where((p) => p.userId == user.id).toList();
     }
 
     if (mounted) {
       setState(() {
         _user = user;
         _projects = projects;
-        _tasks = allTasks;
+        _tasks = tasks;
         _isLoading = false;
       });
     }
@@ -102,7 +102,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                               _buildSectionHeader(
                                 'My Projects',
                                 onViewAll: () {
-                                  Navigator.pushReplacement(
+                                  Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => const ProjectsScreen(),
@@ -145,7 +145,17 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                               const SizedBox(height: 48),
 
                               // --- My Tasks Section ---
-                              _buildSectionHeader('My Tasks'),
+                              _buildSectionHeader(
+                                'My Tasks',
+                                onViewAll: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const TasksScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
                               const SizedBox(height: 20),
                               _buildTasksRow(),
                             ],
@@ -187,17 +197,38 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             final iconIndex = project.id % icons.length;
             return Padding(
               padding: const EdgeInsets.only(right: 24),
-              child: DashboardCard(
-                width: 320,
-                height: 280,
-                title: project.name,
-                subtitle: project.description.isNotEmpty
-                    ? project.description
-                    : 'No description',
-                status: project.visibility == 'public' ? 'Public' : 'Private',
-                progress: 0.0,
-                icon: icons[iconIndex],
-                timeLeft: '${project.participants.length} members',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ProjectDetailScreen(projectId: project.id),
+                      ),
+                    );
+                  },
+                  child: DashboardCard(
+                    width: 320,
+                    height: 280,
+                    title: project.name,
+                    subtitle: project.description.isNotEmpty
+                        ? project.description
+                        : 'No description',
+                    status: project.visibility == 'public'
+                        ? 'Public'
+                        : 'Private',
+                    progress: 0.0,
+                    icon: icons[iconIndex],
+                    images: project.participants
+                        .map((p) => p.user?.profile?.profileImage)
+                        .where((img) => img != null && img.isNotEmpty)
+                        .cast<String>()
+                        .toList(),
+                    timeLeft: '${project.participants.length} members',
+                  ),
+                ),
               ),
             );
           }),
@@ -235,6 +266,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                   : 'No description',
               status: isCompleted ? 'Completed' : 'In Progress',
               progress: isCompleted ? 1.0 : 0.5,
+              showProgress: false,
               icon: isCompleted
                   ? Icons.check_circle
                   : Icons.assignment_outlined,

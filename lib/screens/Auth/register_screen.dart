@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:job_matrix_forntend/screens/widgets/auth_background.dart';
-import 'package:job_matrix_forntend/services/api_service.dart';
+import 'package:job_matrix_forntend/services/auth_provider.dart';
 import 'package:job_matrix_forntend/screens/Dashboard/user_dashboard_screen.dart';
 import 'package:job_matrix_forntend/screens/Dashboard/admin_dashboard_screen.dart';
 
@@ -16,22 +17,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;
 
   Future<void> _handleRegister() async {
-    setState(() => _isLoading = true);
+    final authProvider = context.read<AuthProvider>();
 
-    final response = await ApiService.register(
-      name: _nameController.text,
-      username: _usernameController.text,
-      email: _emailController.text,
-      password: _passwordController.text,
+    final success = await authProvider.register(
+      name: _nameController.text.trim(),
+      username: _usernameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
     );
 
-    setState(() => _isLoading = false);
-
-    if (response != null && mounted) {
-      final role = response.user.role.toLowerCase().trim();
+    if (success && mounted) {
+      final user = authProvider.user;
+      final role = user?.role.toLowerCase().trim() ?? 'user';
       print('User role from server: $role');
 
       Widget nextScreen;
@@ -65,6 +64,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final isLoading = authProvider.isLoading;
+
     return AuthBackground(
       maxWidth: 400,
       child: SingleChildScrollView(
@@ -112,7 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleRegister,
+                onPressed: isLoading ? null : _handleRegister,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF78909C),
                   foregroundColor: Colors.white,
@@ -121,7 +123,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: _isLoading
+                child: isLoading
                     ? const SizedBox(
                         height: 20,
                         width: 20,

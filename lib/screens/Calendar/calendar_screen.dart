@@ -15,7 +15,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDate = DateTime.now();
   List<TaskModel> _allTasks = [];
   bool _isLoading = true;
-  String _activeTeam = 'All Teams';
 
   @override
   void initState() {
@@ -61,6 +60,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         updatedTasks.add(
           TaskModel(
             id: task.id,
+            projectId: task.projectId,
             sectionId: task.sectionId,
             name: task.name,
             description: task.description,
@@ -77,8 +77,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
         setState(() {
           _allTasks = updatedTasks;
           _isLoading = false;
-          // Set focused date to Jan 2026 to match screenshot context if requested
-          _focusedDate = DateTime(2026, 1, 1);
+          // Use current date by default instead of 2026
+          _focusedDate = DateTime.now();
         });
       }
     } catch (e) {
@@ -158,24 +158,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 const Header(title: 'Calendar'),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // Calendar Header (Month navigation and Filters)
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '$monthName $year',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF23393E),
-                              ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: _previousMonth,
+                                  icon: const Icon(Icons.chevron_left,
+                                      color: Color(0xFF23393E), size: 32),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$monthName $year',
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF23393E),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: _nextMonth,
+                                  icon: const Icon(Icons.chevron_right,
+                                      color: Color(0xFF23393E), size: 32),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 24),
-                            _buildNavigationControls(),
-                            const Spacer(),
-                            _buildFilterChips(),
+                            _buildTodayButton(),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -197,74 +210,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildNavigationControls() {
+  Widget _buildTodayButton() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: _previousMonth,
-            icon: const Icon(Icons.chevron_left, size: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-          Container(height: 20, width: 1, color: Colors.grey.shade300),
-          TextButton(
-            onPressed: _goToToday,
-            child: const Text(
-              'Today',
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
+      child: TextButton(
+        onPressed: _goToToday,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Today',
+            style: TextStyle(
+              color: Color(0xFF23393E),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
             ),
           ),
-          Container(height: 20, width: 1, color: Colors.grey.shade300),
-          IconButton(
-            onPressed: _nextMonth,
-            icon: const Icon(Icons.chevron_right, size: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    final teams = ['All Teams', 'Design', 'Engineering'];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: teams.map((team) {
-          final bool isActive = _activeTeam == team;
-          return GestureDetector(
-            onTap: () => setState(() => _activeTeam = team),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isActive ? const Color(0xFF23393E) : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                team,
-                style: TextStyle(
-                  color: isActive ? Colors.white : Colors.black54,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+        ),
       ),
     );
   }
@@ -292,7 +257,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: Column( // This is the main column for the calendar grid
         children: [
           // Day names header
           Container(
@@ -325,10 +290,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final cellWidth = constraints.maxWidth / 7;
-                final cellHeight =
-                    constraints.maxHeight / 6; // Use 6 rows to be safe
-
                 List<Widget> dayCells = [];
 
                 // Offset cells (from previous month)
@@ -353,8 +314,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                 return GridView.count(
                   crossAxisCount: 7,
-                  childAspectRatio: cellWidth / cellHeight,
-                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: (constraints.maxWidth / 7) /
+                      (constraints.maxHeight > 600
+                          ? constraints.maxHeight / 6
+                          : 120),
+                  physics: const ClampingScrollPhysics(),
                   children: dayCells,
                 );
               },
@@ -366,26 +330,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildDayCell(int day, {required bool isCurrentMonth}) {
+    final now = DateTime.now();
+    final bool isToday = isCurrentMonth &&
+        day == now.day &&
+        _focusedDate.month == now.month &&
+        _focusedDate.year == now.year;
+
     final tasks = isCurrentMonth
         ? _getTasksForDay(_focusedDate.year, _focusedDate.month, day)
         : <TaskModel>[];
 
     return Container(
       decoration: BoxDecoration(
+        color: isToday ? const Color(0xFF23393E).withOpacity(0.05) : null,
         border: Border.all(color: Colors.grey.shade100, width: 0.5),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(
-            day.toString(),
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-              color: isCurrentMonth
-                  ? const Color(0xFF23393E)
-                  : Colors.grey.shade300,
+          Container(
+            padding: isToday ? const EdgeInsets.all(4) : EdgeInsets.zero,
+            decoration: isToday
+                ? const BoxDecoration(
+                    color: Color(0xFF23393E),
+                    shape: BoxShape.circle,
+                  )
+                : null,
+            child: Text(
+              day.toString(),
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                color: isToday
+                    ? Colors.white
+                    : (isCurrentMonth
+                        ? const Color(0xFF23393E)
+                        : Colors.grey.shade300),
+              ),
             ),
           ),
           const SizedBox(height: 8),

@@ -6,16 +6,14 @@ import '../../models/project_model.dart';
 import '../../models/task_model.dart';
 import 'project_detail_screen.dart';
 
-class ProjectsScreen extends StatefulWidget {
-  final String? filterVisibility;
-
-  const ProjectsScreen({super.key, this.filterVisibility});
+class JoinedProjectsScreen extends StatefulWidget {
+  const JoinedProjectsScreen({super.key});
 
   @override
-  State<ProjectsScreen> createState() => _ProjectsScreenState();
+  State<JoinedProjectsScreen> createState() => _JoinedProjectsScreenState();
 }
 
-class _ProjectsScreenState extends State<ProjectsScreen> {
+class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
   List<ProjectModel> _projects = [];
   Map<int, List<SectionModel>> _projectSections = {};
   bool _isLoading = true;
@@ -37,34 +35,31 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         _currentUserId = profile?.id;
       }
 
-      final projects = widget.filterVisibility == 'public'
-          ? await ApiService.getPublicProjects()
-          : await ApiService.getMyProjects();
+      final projects = await ApiService.getJoinedProjects();
 
-      List<ProjectModel> projectList = projects;
-
-      // Filter: only my projects (created by me)
-      if (widget.filterVisibility != 'public' && _currentUserId != null) {
-        projectList =
-            projectList.where((p) => p.userId == _currentUserId).toList();
+      // Filter: only projects where I am NOT the owner/creator
+      List<ProjectModel> filteredProjects = projects;
+      if (_currentUserId != null) {
+        filteredProjects =
+            projects.where((p) => p.userId != _currentUserId).toList();
       }
 
       final Map<int, List<SectionModel>> sectionMapping = {};
 
-      for (var project in projectList) {
+      for (var project in filteredProjects) {
         final sections = await ApiService.getSections(project.id);
         sectionMapping[project.id] = sections;
       }
 
       if (mounted) {
         setState(() {
-          _projects = projectList;
+          _projects = filteredProjects;
           _projectSections = sectionMapping;
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading projects/sections: $e');
+      print('Error loading joined projects: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -84,9 +79,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     });
 
     try {
-      final searchResults = widget.filterVisibility == 'public'
-          ? await ApiService.searchPublicProjects(query)
-          : await ApiService.searchPrivateProjects(query);
+      final searchResults = await ApiService.searchJoinedProjects(query);
 
       final Map<int, List<SectionModel>> sectionMapping = {};
       for (var project in searchResults) {
@@ -102,37 +95,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         });
       }
     } catch (e) {
-      print('Error searching projects: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _handleSkillFilter(String skill) async {
-    setState(() {
-      _isLoading = true;
-      _searchQuery = 'Skill: $skill'; // Show the filter in the UI
-    });
-
-    try {
-      final filteredResults = await ApiService.filterProjectsBySkill(skill);
-
-      final Map<int, List<SectionModel>> sectionMapping = {};
-      for (var project in filteredResults) {
-        final sections = await ApiService.getSections(project.id);
-        sectionMapping[project.id] = sections;
-      }
-
-      if (mounted) {
-        setState(() {
-          _projects = filteredResults;
-          _projectSections = sectionMapping;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error filtering by skill: $e');
+      print('Error searching joined projects: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -142,22 +105,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   List<ProjectModel> _getFilteredProjects() {
     if (_isLoading) return [];
 
-    List<ProjectModel> filtered = _projects;
+    if (_searchQuery.isEmpty) return _projects;
 
-    // Apply visibility filter if provided
-    if (widget.filterVisibility != null) {
-      filtered = filtered
-          .where(
-            (p) =>
-                p.visibility.toLowerCase() ==
-                widget.filterVisibility!.toLowerCase(),
-          )
-          .toList();
-    }
-
-    if (_searchQuery.isEmpty) return filtered;
-
-    return filtered
+    return _projects
         .where(
           (p) =>
               p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -178,16 +128,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       backgroundColor: Colors.white,
       body: Row(
         children: [
-          const Sidebar(currentRoute: 'projects'),
+          const Sidebar(currentRoute: 'joined_projects'),
           Expanded(
             child: Column(
               children: [
                 Header(
-                  title: widget.filterVisibility == 'public'
-                      ? 'Public Projects'
-                      : 'Projects',
-                  showCreateButton:
-                      false, // User requested to remove it from here
+                  title: 'Joined Projects',
+                  showCreateButton: false,
                   onProjectCreated: _loadProjects,
                   onSearch: _handleSearch,
                 ),
@@ -226,7 +173,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Here are your projects',
+              'Projects you have joined',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -235,30 +182,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             ),
             Row(
               children: [
-                if (widget.filterVisibility != 'public') ...[
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const ProjectsScreen(filterVisibility: 'public'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.explore_outlined, size: 16),
-                    label: const Text('Explore Public'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
                 OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.filter_list, size: 16),
@@ -301,10 +224,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           padding: const EdgeInsets.symmetric(vertical: 80),
           child: Column(
             children: [
-              Icon(Icons.folder_open, size: 64, color: Colors.grey.shade300),
+              Icon(
+                Icons.group_work_outlined,
+                size: 64,
+                color: Colors.grey.shade300,
+              ),
               const SizedBox(height: 16),
               const Text(
-                'No projects yet',
+                'No joined projects yet',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -313,7 +240,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Create your first project to get started!',
+                'Projects you join will appear here!',
                 style: TextStyle(color: Colors.black38),
               ),
             ],
@@ -342,7 +269,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(
-          height: 350,
+          height: 300,
           margin: const EdgeInsets.only(bottom: 32),
           decoration: BoxDecoration(
             color: const Color(0xFFD1D1CB),
@@ -351,7 +278,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left Project Info
               Container(
                 width: 300,
                 padding: const EdgeInsets.all(32),
@@ -366,7 +292,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         color: Color(0xFF23393E),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: Text(
                         project.description,
@@ -375,56 +301,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           color: Colors.black54,
                           height: 1.5,
                         ),
-                        maxLines: 4,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     const Text(
-                      'Created at: 1/22/2026',
+                      'Member since: Today',
                       style: TextStyle(fontSize: 12, color: Colors.black45),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Skills:',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF23393E),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: project.skills
-                          .take(3)
-                          .map(
-                            (skill) => GestureDetector(
-                              onTap: () => _handleSkillFilter(skill),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF23393E).withAlpha(30),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  skill,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF23393E),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     const Text(
                       'Team Members:',
                       style: TextStyle(
@@ -433,7 +318,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         color: Color(0xFF23393E),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         ...project.participants.take(3).map(
@@ -489,11 +374,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   ],
                 ),
               ),
-
-              // Divider
               Container(width: 1, color: Colors.black.withAlpha(20)),
-
-              // Right Sections List
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,

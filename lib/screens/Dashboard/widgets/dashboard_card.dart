@@ -10,6 +10,7 @@ class DashboardCard extends StatelessWidget {
   final IconData icon;
   final double width;
   final double? height;
+  final bool showProgress;
 
   const DashboardCard({
     super.key,
@@ -22,6 +23,7 @@ class DashboardCard extends StatelessWidget {
     this.images,
     this.width = 300,
     this.height,
+    this.showProgress = true,
   });
 
   @override
@@ -80,6 +82,8 @@ class DashboardCard extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -97,48 +101,77 @@ class DashboardCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Progress',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-              ),
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+          if (showProgress) ...[
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Progress',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
                 ),
+                Text(
+                  '${(progress * 100).toInt()}%',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.white38,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF23393E),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.white38,
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF23393E)),
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(10),
-          ),
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ],
           const SizedBox(height: 20),
           Row(
             children: [
-              // Placeholder for avatars
-              Row(
-                children: List.generate(
-                  2,
-                  (index) => Container(
-                    margin: const EdgeInsets.only(right: 4),
-                    child: const CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.person, size: 14, color: Colors.grey),
+              // Participant avatars
+              if (images != null && images!.isNotEmpty)
+                SizedBox(
+                  height: 24,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    shrinkWrap: true,
+                    itemCount: images!.length > 4 ? 4 : images!.length,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: const Color(0xFF90A4AE),
+                          backgroundImage: NetworkImage(images![index]),
+                          onBackgroundImageError: (_, __) {},
+                        ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Row(
+                  children: List.generate(
+                    2,
+                    (index) => Container(
+                      margin: const EdgeInsets.only(right: 4),
+                      child: const CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, size: 14, color: Colors.grey),
+                      ),
                     ),
                   ),
                 ),
-              ),
               const Spacer(),
               if (timeLeft != null)
                 Row(

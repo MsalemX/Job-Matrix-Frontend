@@ -1,28 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../models/task_model.dart';
+import '../task_detail_screen.dart';
 
 class TaskListItem extends StatelessWidget {
   final TaskModel task;
   final String projectName;
+  final VoidCallback? onRefresh;
 
   const TaskListItem({
     super.key,
     required this.task,
     required this.projectName,
+    this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isCompleted =
-        task.status == 'completed' || task.status == 'done';
+        task.status == 'completed' || task.status == 'done' || task.status == 'COMPLETED';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFD1D1CB,
-        ), // Matching the screenshot's greyish card color
+        color: const Color(0xFFD1D1CB),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -48,12 +50,32 @@ class TaskListItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  task.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF23393E),
+                GestureDetector(
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TaskDetailScreen(
+                          task: task,
+                          projectName: projectName,
+                        ),
+                      ),
+                    );
+                    
+                    if (result == true && onRefresh != null) {
+                      onRefresh!();
+                    }
+                  },
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Text(
+                      task.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Color(0xFF23393E),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -132,9 +154,11 @@ class TaskListItem extends StatelessWidget {
                       color: Color(0xFF23393E),
                     ),
                     const SizedBox(width: 4),
-                    const Text(
-                      'Oct 24, 2023', // Placeholder for now as TaskModel might not have dueDate yet
-                      style: TextStyle(
+                    Text(
+                      task.dueDate != null
+                          ? DateFormat('MMM dd, yyyy').format(task.dueDate!)
+                          : 'Oct 24, 2023',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                         color: Color(0xFF23393E),

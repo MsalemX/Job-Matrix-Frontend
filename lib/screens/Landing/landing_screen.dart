@@ -1,21 +1,56 @@
 import 'package:flutter/material.dart';
 import '../Auth/auth_selection_screen.dart';
+import 'contact_us_screen.dart';
+import 'help_center_screen.dart';
+import 'faq_screen.dart';
+import 'tutorials_screen.dart';
+import 'terms_of_service_screen.dart';
+import 'conditions_screen.dart';
+import 'cookie_policy_screen.dart';
+import 'privacy_policy_screen.dart';
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends State<LandingScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _homeKey = GlobalKey();
+  final GlobalKey _problemKey = GlobalKey();
+  final GlobalKey _featuresKey = GlobalKey();
+  final GlobalKey _teamKey = GlobalKey();
+  final GlobalKey _whyUsKey = GlobalKey();
+
+  void _scrollToSection(GlobalKey key) {
+    Scrollable.ensureVisible(
+      key.currentContext!,
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7), // Light background for top
+      backgroundColor: const Color(0xFFF5F5F7),
       body: SingleChildScrollView(
+        controller: _scrollController,
         child: Column(
           children: [
-            _AnimatedSection(child: _buildHeroSection(context)),
-            _buildProblemSolveSection(context),
-            _buildFeaturesSection(context),
-            _buildTeamSection(context),
-            _buildWhyUsSection(context),
+            _AnimatedSection(key: _homeKey, child: _buildHeroSection(context)),
+            _buildProblemSolveSection(context, key: _problemKey),
+            _buildFeaturesSection(context, key: _featuresKey),
+            _buildTeamSection(context, key: _teamKey),
+            _buildWhyUsSection(context, key: _whyUsKey),
             _buildCTASection(context),
             _buildFooter(context),
           ],
@@ -98,8 +133,9 @@ class LandingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProblemSolveSection(BuildContext context) {
+  Widget _buildProblemSolveSection(BuildContext context, {Key? key}) {
     return Container(
+      key: key,
       color: const Color(0xFFF3F4F6),
       padding: const EdgeInsets.all(32.0),
       child: LayoutBuilder(
@@ -156,8 +192,9 @@ class LandingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturesSection(BuildContext context) {
+  Widget _buildFeaturesSection(BuildContext context, {Key? key}) {
     return Container(
+      key: key,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
       child: Column(
         children: [
@@ -275,8 +312,9 @@ class LandingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTeamSection(BuildContext context) {
+  Widget _buildTeamSection(BuildContext context, {Key? key}) {
     return Container(
+      key: key,
       color: const Color(0xFF90A4AE), // Solid color from screenshot
       padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 24),
       width: double.infinity,
@@ -300,7 +338,7 @@ class LandingScreen extends StatelessWidget {
                   'Mohammed Salem Alhanshi',
                   'Flutter Developer',
                   'A Flutter developer is a software developer who builds cross-platform mobile applications using the Flutter framework.',
-                  'assets/images/team/Mohammed_Salem_Alhanshi.jpg',
+                  'assets/images/team/Mohammed Salem Alhanshi.jpg',
                 ),
                 _buildTeamMember(
                   "Assem Ahmed Ba'abbad",
@@ -312,13 +350,13 @@ class LandingScreen extends StatelessWidget {
                   "Mohammed Waheb Ba'issa",
                   'Developer',
                   'A software developer is a professional who creates, tests, and maintains computer programs and applications.',
-                  'assets/team/Mohammed_Waheb_Baissa.jpg',
+                  "assets/images/team/Mohammed Waheb Ba'issa.jpg",
                 ),
                 _buildTeamMember(
                   'Fawaz Akram Basoura',
                   'Developer',
                   'A software developer is a professional who creates, tests, and maintains computer programs and applications.',
-                  'assets/images/team/Fawaz_Akram_Basoura.jpg',
+                  'assets/images/team/Fawaz Akram Basoura.jpg',
                 ),
               ],
             ),
@@ -350,7 +388,7 @@ class LandingScreen extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.asset(
-                  'assets/images/team/$imageName',
+                  imageName,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return const Icon(
@@ -406,8 +444,9 @@ class LandingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWhyUsSection(BuildContext context) {
+  Widget _buildWhyUsSection(BuildContext context, {Key? key}) {
     return Container(
+      key: key,
       color: const Color(0xFF2D464C), // Dark section
       padding: const EdgeInsets.symmetric(vertical: 80, horizontal: 24),
       width: double.infinity,
@@ -501,7 +540,14 @@ class LandingScreen extends StatelessWidget {
             runSpacing: 20,
             children: [
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AuthSelectionScreen(),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF2D464C),
@@ -519,7 +565,14 @@ class LandingScreen extends StatelessWidget {
                 ),
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ContactUsScreen(),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF2D464C),
@@ -583,22 +636,78 @@ class LandingScreen extends StatelessWidget {
                     ),
                   ),
                   _buildFooterColumn('Quick Links', [
-                    'Home',
-                    'Problem',
-                    'Features',
-                    'Team',
-                    'Why us?',
+                    {'title': 'Home', 'onTap': () => _scrollToSection(_homeKey)},
+                    {'title': 'Problem', 'onTap': () => _scrollToSection(_problemKey)},
+                    {'title': 'Features', 'onTap': () => _scrollToSection(_featuresKey)},
+                    {'title': 'Team', 'onTap': () => _scrollToSection(_teamKey)},
+                    {'title': 'Why us?', 'onTap': () => _scrollToSection(_whyUsKey)},
                   ]),
                   _buildFooterColumn('Resources / Support', [
-                    'Help Center',
-                    'FAQ',
-                    'Tutorials',
+                    {
+                      'title': 'Help Center',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HelpCenterScreen()),
+                        );
+                      }
+                    },
+                    {
+                      'title': 'FAQ',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const FAQScreen()),
+                        );
+                      }
+                    },
+                    {
+                      'title': 'Tutorials',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TutorialsScreen()),
+                        );
+                      }
+                    },
                   ]),
                   _buildFooterColumn('Terms', [
-                    'Terms',
-                    'Conditions',
-                    'Cookie Policy',
-                    'Privacy Policy',
+                    {
+                      'title': 'Terms',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TermsOfServiceScreen()),
+                        );
+                      }
+                    },
+                    {
+                      'title': 'Conditions',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ConditionsScreen()),
+                        );
+                      }
+                    },
+                    {
+                      'title': 'Cookie Policy',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const CookiePolicyScreen()),
+                        );
+                      }
+                    },
+                    {
+                      'title': 'Privacy Policy',
+                      'onTap': () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                        );
+                      }
+                    },
                   ]),
                 ],
               );
@@ -620,7 +729,7 @@ class LandingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFooterColumn(String title, List<String> links) {
+  Widget _buildFooterColumn(String title, List<Map<String, dynamic>> links) {
     return SizedBox(
       width: 150,
       child: Column(
@@ -638,9 +747,12 @@ class LandingScreen extends StatelessWidget {
           ...links.map(
             (link) => Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(
-                link,
-                style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              child: InkWell(
+                onTap: link['onTap'],
+                child: Text(
+                  link['title'],
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
               ),
             ),
           ),
@@ -652,7 +764,7 @@ class LandingScreen extends StatelessWidget {
 
 class _AnimatedSection extends StatefulWidget {
   final Widget child;
-  const _AnimatedSection({required this.child});
+  const _AnimatedSection({super.key, required this.child});
 
   @override
   State<_AnimatedSection> createState() => _AnimatedSectionState();

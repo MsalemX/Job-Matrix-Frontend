@@ -3,12 +3,14 @@ import '../../Projects/widgets/create_project_dialog.dart';
 import '../../../models/user_model.dart';
 import '../../../services/api_service.dart';
 import '../../Profile/profile_screen.dart';
+import '../../Profile/edit_profile_screen.dart';
 
 class Header extends StatefulWidget {
   final String title;
   final bool showCreateButton;
   final bool showEditProfileButton;
   final VoidCallback? onProjectCreated;
+  final Function(String)? onSearch;
 
   const Header({
     super.key,
@@ -16,6 +18,7 @@ class Header extends StatefulWidget {
     this.showCreateButton = true,
     this.showEditProfileButton = false,
     this.onProjectCreated,
+    this.onSearch,
   });
 
   @override
@@ -57,29 +60,28 @@ class _HeaderState extends State<Header> {
               color: Colors.black,
             ),
           ),
-          const SizedBox(width: 48),
+          const SizedBox(width: 24),
           // Search Bar
-          Expanded(
-            child: Container(
-              height: 40,
-              constraints: const BoxConstraints(maxWidth: 400),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search projects or tasks...',
-                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-                  prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
-                ),
+          Container(
+            width: 300,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: TextField(
+              onSubmitted: widget.onSearch,
+              decoration: const InputDecoration(
+                hintText: 'Search projects or tasks...',
+                hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+                prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),
-          const SizedBox(width: 24),
+          const Spacer(),
           // Create Project Button
           if (widget.showCreateButton)
             ElevatedButton.icon(
@@ -104,8 +106,21 @@ class _HeaderState extends State<Header> {
           if (widget.showEditProfileButton)
             ElevatedButton.icon(
               onPressed: () {
-                // Navigate to settings or edit profile
-                // For now, let's keep it consistent with the screenshot
+                if (_user != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditProfileScreen(user: _user!),
+                    ),
+                  ).then((value) {
+                    if (value == true) {
+                      _loadUser();
+                      if (widget.onProjectCreated != null) {
+                        widget.onProjectCreated!();
+                      }
+                    }
+                  });
+                }
               },
               icon: const Icon(Icons.edit_outlined, size: 18),
               label: const Text('Edit Profile'),

@@ -15,7 +15,6 @@ class TasksScreen extends StatefulWidget {
 class _TasksScreenState extends State<TasksScreen> {
   int _activeTab = 0; // 0 for In Progress, 1 for Completed
   List<TaskModel> _allTasks = [];
-  Map<int, String> _sectionIdToProjectName = {};
   bool _isLoading = true;
 
   @override
@@ -28,22 +27,11 @@ class _TasksScreenState extends State<TasksScreen> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final projects = await ApiService.getMyProjects();
-      List<TaskModel> allTasks = [];
-      Map<int, String> sectionMapping = {};
-
-      for (var project in projects) {
-        final sections = await ApiService.getSections(project.id);
-        for (var section in sections) {
-          sectionMapping[section.id] = project.name;
-          allTasks.addAll(section.tasks);
-        }
-      }
+      final tasks = await ApiService.getMyTasks();
 
       if (mounted) {
         setState(() {
-          _allTasks = allTasks;
-          _sectionIdToProjectName = sectionMapping;
+          _allTasks = tasks;
           _isLoading = false;
         });
       }
@@ -55,8 +43,8 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-  String _getProjectName(int sectionId) {
-    return _sectionIdToProjectName[sectionId] ?? "Project";
+  String _getProjectName(TaskModel task) {
+    return task.projectName ?? "Project";
   }
 
   @override
@@ -67,15 +55,15 @@ class _TasksScreenState extends State<TasksScreen> {
 
     if (!_isLoading) {
       inProgressCount = _allTasks
-          .where((t) => t.status != 'completed' && t.status != 'done')
+          .where((t) => t.status != 'completed' && t.status != 'done' && t.status != 'COMPLETED')
           .length;
       completedCount = _allTasks
-          .where((t) => t.status == 'completed' || t.status == 'done')
+          .where((t) => t.status == 'completed' || t.status == 'done' || t.status == 'COMPLETED')
           .length;
 
       filteredTasks = _allTasks.where((task) {
         final bool isCompleted =
-            task.status == 'completed' || task.status == 'done';
+            task.status == 'completed' || task.status == 'done' || task.status == 'COMPLETED';
         return _activeTab == 0 ? !isCompleted : isCompleted;
       }).toList();
     }
@@ -186,9 +174,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                   final task = filteredTasks[index];
                                   return TaskListItem(
                                     task: task,
-                                    projectName: _getProjectName(
-                                      task.sectionId,
-                                    ),
+                                    projectName: _getProjectName(task),
+                                    onRefresh: _loadData,
                                   );
                                 },
                               ),

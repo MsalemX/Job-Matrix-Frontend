@@ -1,53 +1,100 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
-import '../Auth/login_screen.dart';
+import 'package:job_matrix_forntend/services/api_service.dart';
+import 'package:job_matrix_forntend/screens/Auth/login_screen.dart';
+import 'package:job_matrix_forntend/models/user_model.dart';
+import 'package:job_matrix_forntend/models/project_model.dart';
+import 'package:job_matrix_forntend/screens/Dashboard/admin_profile_screen.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
+
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  bool _isLoading = true;
+  List<User> _users = [];
+  List<ProjectModel> _projects = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    setState(() => _isLoading = true);
+    try {
+      final results = await Future.wait([
+        ApiService.adminGetUsers(),
+        ApiService.adminGetAllProjects(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _users = results[0] as List<User>;
+          _projects = results[1] as List<ProjectModel>;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading dashboard: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFFC7CDCA,
-      ), // Light greyish-green background
+      backgroundColor: const Color(0xFFC7CDCA),
       body: Column(
         children: [
           _buildTopNav(context),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'System Overview',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF33423E),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _fetchDashboardData,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'System Overview',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF33423E),
+                            ),
+                          ),
+                          const Text(
+                            'Real-time performance metrics and recent administrative activity.',
+                            style: TextStyle(color: Color(0xFF7A8B86)),
+                          ),
+                          const SizedBox(height: 48),
+                          _buildOverviewCards(),
+                          const SizedBox(height: 48),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildRecentProjects()),
+                              const SizedBox(width: 40),
+                              Expanded(child: _buildNewUsers()),
+                            ],
+                          ),
+                          const SizedBox(height: 80),
+                          _buildFooter(),
+                        ],
+                      ),
                     ),
                   ),
-                  const Text(
-                    'Real-time performance metrics and recent administrative activity.',
-                    style: TextStyle(color: Color(0xFF7A8B86)),
-                  ),
-                  const SizedBox(height: 48),
-                  _buildOverviewCards(),
-                  const SizedBox(height: 48),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildRecentProjects()),
-                      const SizedBox(width: 40),
-                      Expanded(child: _buildNewUsers()),
-                    ],
-                  ),
-                  const SizedBox(height: 80),
-                  _buildFooter(),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -57,7 +104,7 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget _buildTopNav(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-      color: const Color(0xFF33423E), // Dark teal
+      color: const Color(0xFF33423E),
       child: Row(
         children: [
           const Icon(Icons.grid_view_sharp, color: Colors.white, size: 28),
@@ -81,13 +128,15 @@ class AdminDashboardScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               await ApiService.logout();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF423333), // Reddish-dark button
+              backgroundColor: const Color(0xFF423333),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(4),
@@ -96,9 +145,19 @@ class AdminDashboardScreen extends StatelessWidget {
             child: const Text('Logout'),
           ),
           const SizedBox(width: 24),
-          const CircleAvatar(
-            radius: 18,
-            backgroundImage: AssetImage('assets/images/team/team_1.jpg'),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminProfileScreen(),
+                ),
+              );
+            },
+            child: const CircleAvatar(
+              radius: 18,
+              backgroundImage: AssetImage('assets/images/team/team_1.jpg'),
+            ),
           ),
         ],
       ),
@@ -144,11 +203,19 @@ class AdminDashboardScreen extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _buildStatCard('TOTAL PROJECTS', '128', Icons.folder_open),
+          child: _buildStatCard(
+            'TOTAL PROJECTS',
+            _projects.length.toString(),
+            Icons.folder_open,
+          ),
         ),
         const SizedBox(width: 24),
         Expanded(
-          child: _buildStatCard('TOTAL USERS', '2,540', Icons.people_outline),
+          child: _buildStatCard(
+            'TOTAL USERS',
+            _users.length.toString(),
+            Icons.people_outline,
+          ),
         ),
       ],
     );
@@ -158,7 +225,7 @@ class AdminDashboardScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF33423E), // Dark teal
+        color: const Color(0xFF33423E),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -193,6 +260,9 @@ class AdminDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildRecentProjects() {
+    // Show last 5 projects
+    final recentProjects = _projects.reversed.take(5).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -222,22 +292,31 @@ class AdminDashboardScreen extends StatelessWidget {
             color: const Color(0xFFD9DEDC),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            children: [
-              _buildProjectItem('Apollo E-commerce Platform', 'Oct 28, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildProjectItem('Cybersecurity Audit 2024', 'Oct 26, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildProjectItem('Neural Network Training API', 'Oct 24, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildProjectItem('Global Logistics Dashboard', 'Oct 22, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildProjectItem('Legacy Database Migration', 'Oct 19, 2023'),
-            ],
-          ),
+          child: recentProjects.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: Text('No projects found')),
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < recentProjects.length; i++) ...[
+                      _buildProjectItem(
+                        recentProjects[i].name,
+                        _formatDate(recentProjects[i].createdAt),
+                      ),
+                      if (i < recentProjects.length - 1)
+                        const Divider(height: 1, color: Color(0xFFC7CDCA)),
+                    ],
+                  ],
+                ),
         ),
       ],
     );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'N/A';
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildProjectItem(String title, String date) {
@@ -246,12 +325,15 @@ class AdminDashboardScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF33423E),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF33423E),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Text(
@@ -264,6 +346,9 @@ class AdminDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildNewUsers() {
+    // Show last 5 users
+    final newUsers = _users.reversed.take(5).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -293,25 +378,29 @@ class AdminDashboardScreen extends StatelessWidget {
             color: const Color(0xFFD9DEDC),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            children: [
-              _buildUserItem('Sarah Jenkins', 'Oct 29, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildUserItem('David Chen', 'Oct 27, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildUserItem('Michael Scott', 'Oct 25, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildUserItem('Elena Gilbert', 'Oct 23, 2023'),
-              const Divider(height: 1, color: Color(0xFFC7CDCA)),
-              _buildUserItem('Jordan Henderson', 'Oct 21, 2023'),
-            ],
-          ),
+          child: newUsers.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: Text('No users found')),
+                )
+              : Column(
+                  children: [
+                    for (var i = 0; i < newUsers.length; i++) ...[
+                      _buildUserItem(
+                        newUsers[i].name,
+                        'New User', // You could use createdAt if available on User model
+                      ),
+                      if (i < newUsers.length - 1)
+                        const Divider(height: 1, color: Color(0xFFC7CDCA)),
+                    ],
+                  ],
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildUserItem(String name, String date) {
+  Widget _buildUserItem(String name, String subtitle) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
@@ -336,7 +425,7 @@ class AdminDashboardScreen extends StatelessWidget {
             ),
           ),
           Text(
-            date,
+            subtitle,
             style: const TextStyle(color: Color(0xFF7A8B86), fontSize: 13),
           ),
         ],

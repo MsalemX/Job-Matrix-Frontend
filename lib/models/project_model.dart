@@ -1,4 +1,5 @@
 import 'user_model.dart';
+import 'task_model.dart';
 
 class ProjectModel {
   final int id;
@@ -6,8 +7,11 @@ class ProjectModel {
   final String description;
   final String visibility;
   final List<String> skills;
+  final int? userId;
   final User? owner;
   final List<ParticipantModel> participants;
+  final List<SectionModel> sections;
+  final DateTime? createdAt;
 
   ProjectModel({
     required this.id,
@@ -15,8 +19,11 @@ class ProjectModel {
     required this.description,
     this.visibility = 'public',
     this.skills = const [],
+    this.userId,
     this.owner,
     this.participants = const [],
+    this.sections = const [],
+    this.createdAt,
   });
 
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
@@ -25,13 +32,34 @@ class ProjectModel {
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       visibility: json['visibility'] ?? 'public',
-      skills: json['skills'] != null ? List<String>.from(json['skills']) : [],
+      skills: json['skills'] != null
+          ? (json['skills'] as List)
+                .map((s) {
+                  if (s is String) return s;
+                  if (s is Map && s.containsKey('name')) {
+                    return s['name'].toString();
+                  }
+                  return s.toString();
+                })
+                .where((s) => s.isNotEmpty)
+                .toList()
+                .cast<String>()
+          : [],
+      userId: json['user_id'],
       owner: json['user'] != null ? User.fromJson(json['user']) : null,
-      participants: json['participants'] != null
+      participants: (json['participants'] is List)
           ? (json['participants'] as List)
                 .map((i) => ParticipantModel.fromJson(i))
                 .toList()
           : [],
+      sections: (json['sections'] is List)
+          ? (json['sections'] as List)
+                .map((i) => SectionModel.fromJson(i))
+                .toList()
+          : [],
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'].toString())
+          : null,
     );
   }
 
@@ -50,6 +78,7 @@ class ParticipantModel {
   final int userId;
   final int projectId;
   final String status;
+  final String role;
   final User? user;
 
   ParticipantModel({
@@ -57,6 +86,7 @@ class ParticipantModel {
     required this.userId,
     required this.projectId,
     required this.status,
+    this.role = 'member',
     this.user,
   });
 
@@ -66,6 +96,7 @@ class ParticipantModel {
       userId: json['user_id'] ?? 0,
       projectId: json['project_id'] ?? 0,
       status: json['status'] ?? 'pending',
+      role: json['role'] ?? 'member',
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
