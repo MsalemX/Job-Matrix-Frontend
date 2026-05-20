@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:job_matrix_forntend/services/api_service.dart';
 import 'package:job_matrix_forntend/models/user_model.dart';
-import 'package:job_matrix_forntend/screens/Auth/login_screen.dart';
+import 'package:job_matrix_forntend/providers/language_provider.dart';
+import 'package:job_matrix_forntend/widgets/admin_top_nav.dart';
+import 'package:provider/provider.dart';
 
 class AdminProfileScreen extends StatefulWidget {
   const AdminProfileScreen({super.key});
@@ -33,11 +35,12 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final langProvider = Provider.of<LanguageProvider>(context);
     return Scaffold(
       backgroundColor: const Color(0xFFC7CDCA),
       body: Column(
         children: [
-          _buildTopNav(context),
+          const AdminTopNav(activeItem: 'Profile'),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -51,9 +54,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                         constraints: const BoxConstraints(maxWidth: 800),
                         child: Column(
                           children: [
-                            _buildProfileHeaderCard(),
+                            _buildProfileHeaderCard(langProvider),
                             const SizedBox(height: 24),
-                            _buildAccountSettingsCard(),
+                            _buildAccountSettingsCard(langProvider),
                             const SizedBox(height: 24),
                             const Text(
                               '• JOB MATRIX V1.0 •',
@@ -75,76 +78,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     );
   }
 
-  Widget _buildTopNav(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-      color: const Color(0xFF33423E),
-      child: Row(
-        children: [
-          const Icon(Icons.grid_view_sharp, color: Colors.white, size: 28),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Text(
-              'Job Matrix',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Spacer(),
-          _buildNavItem('Dashboard', onTap: () => Navigator.pop(context)),
-          _buildNavItem('Users'),
-          _buildNavItem('Projects'),
-          _buildNavItem('Reports'),
-          const SizedBox(width: 24),
-          ElevatedButton(
-            onPressed: () async {
-              await ApiService.logout();
-              if (mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF423333),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            child: const Text('Logout'),
-          ),
-          const SizedBox(width: 24),
-          const CircleAvatar(
-            radius: 18,
-            backgroundColor: Color(0xFF7A8B86),
-            child: Icon(Icons.person, color: Colors.white, size: 20),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String title, {VoidCallback? onTap}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: InkWell(
-        onTap: onTap,
-        child: Text(
-          title,
-          style: const TextStyle(color: Color(0xFF7A8B86), fontSize: 14),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileHeaderCard() {
+  Widget _buildProfileHeaderCard(LanguageProvider langProvider) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40),
@@ -205,9 +139,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              'Edit Profile',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            child: Text(
+              langProvider.translate('edit_profile'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -215,7 +149,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     );
   }
 
-  Widget _buildAccountSettingsCard() {
+  Widget _buildAccountSettingsCard(LanguageProvider langProvider) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -230,9 +164,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Account Overview',
-                  style: TextStyle(
+                Text(
+                  langProvider.translate('account_overview'),
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF33423E),
@@ -253,34 +187,37 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Account Settings',
-                  style: TextStyle(
+                Text(
+                  langProvider.translate('account_settings'),
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF33423E),
                   ),
                 ),
-                const Text(
-                  'Manage your administrative profile and preferences.',
-                  style: TextStyle(color: Color(0xFF7A8B86), fontSize: 13),
+                Text(
+                  langProvider.translate('manage_admin_profile'),
+                  style: const TextStyle(
+                    color: Color(0xFF7A8B86),
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 32),
                 _buildSettingItem(
                   Icons.email_outlined,
-                  'Email Address',
+                  langProvider.translate('email_address'),
                   _user?.email ?? 'admin@example.com',
                 ),
                 const Divider(height: 32, color: Color(0xFFECECEC)),
                 _buildSettingItem(
                   Icons.phone_outlined,
-                  'Phone Number',
-                  '+967 736 047 368', // Hardcoded as per design or fetch from profile if exists
+                  langProvider.translate('phone_number'),
+                  '+967 736 047 368',
                 ),
                 const Divider(height: 32, color: Color(0xFFECECEC)),
                 _buildSettingItem(
                   Icons.history,
-                  'Last Login',
+                  langProvider.translate('last_login'),
                   'October 24, 2023 - 14:20 PM',
                 ),
                 const SizedBox(height: 48),
@@ -290,7 +227,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () {},
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Change Password'),
+                        label: Text(langProvider.translate('change_password')),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           foregroundColor: const Color(0xFF33423E),
@@ -306,10 +243,10 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () {},
                         icon: const Icon(Icons.file_download_outlined),
-                        label: const Text('Export Data'),
+                        label: Text(langProvider.translate('export_data')),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          foregroundColor: Color(0xFF7A8B86),
+                          foregroundColor: const Color(0xFF7A8B86),
                           side: const BorderSide(color: Color(0xFFECECEC)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),

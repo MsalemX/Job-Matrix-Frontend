@@ -20,18 +20,22 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _token = await ApiService.getToken();
-    if (_token != null) {
-      // Try to fetch profile to verify token and get user data
-      _user = await ApiService.getMyProfile();
-      if (_user == null) {
-        // Token might be invalid or expired
-        await logout();
+    try {
+      _token = await ApiService.getToken();
+      if (_token != null) {
+        // Try to fetch profile to verify token and get user data
+        _user = await ApiService.getMyProfile();
+        if (_user == null) {
+          // Token might be invalid or expired
+          await logout();
+        }
       }
+    } catch (e) {
+      print('Error in tryAutoLogin: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<bool> login(String login, String password) async {
@@ -49,6 +53,28 @@ class AuthProvider with ChangeNotifier {
       }
     } catch (e) {
       print('Login error in AuthProvider: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> googleLogin() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await ApiService.loginWithGoogle();
+      if (response != null) {
+        _token = response.accessToken;
+        _user = response.user;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      print('Google Login error in AuthProvider: $e');
     }
 
     _isLoading = false;
@@ -104,6 +130,14 @@ class AuthProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  // Update auth data manually
+  void setAuth(User? user, String? token) {
+    _user = user;
+    _token = token;
+    _isLoading = false;
+    notifyListeners();
   }
 
   // Update user data locally if changed elsewhere

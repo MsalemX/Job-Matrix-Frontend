@@ -109,34 +109,52 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                                     ),
                                   );
                                 },
-                                action: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const ProjectsScreen(
-                                          filterVisibility: 'public',
+                                action: Row(
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: _showInviteLinkDialog,
+                                      icon: const Icon(Icons.link, size: 16),
+                                      label: const Text('Join via Link'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: const Color(0xFF23393E),
+                                        side: const BorderSide(color: Color(0xFF23393E)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
                                       ),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.explore_outlined,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Explore Public Projects'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF23393E),
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                    const SizedBox(width: 12),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const ProjectsScreen(
+                                              filterVisibility: 'public',
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(
+                                        Icons.explore_outlined,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Explore Public Projects'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF23393E),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 20),
@@ -421,4 +439,138 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       ),
     );
   }
+
+  void _showInviteLinkDialog() {
+    final controller = TextEditingController();
+    bool isJoining = false;
+    String? errorMsg;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withAlpha(150),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: const [
+                  Icon(Icons.link, color: Color(0xFF23393E)),
+                  SizedBox(width: 12),
+                  Text('Join via Invite Link',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Paste the invite link or code you received:',
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      hintText: 'Paste invite link or code...',
+                      prefixIcon: const Icon(Icons.content_paste, size: 20),
+                      errorText: errorMsg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF23393E),
+                          width: 2,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                    ),
+                    onSubmitted: (_) {
+                      // Allow pressing Enter to submit
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.black54)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: isJoining
+                      ? null
+                      : () async {
+                          final code = controller.text.trim().split('/').last;
+                          if (code.isEmpty) return;
+
+                          setState(() {
+                            isJoining = true;
+                            errorMsg = null;
+                          });
+
+                          // First preview to get the project ID
+                          final project =
+                              await ApiService.getProjectByInviteLink(code);
+
+                          if (project == null) {
+                            setState(() {
+                              isJoining = false;
+                              errorMsg = 'Invalid or expired invite link';
+                            });
+                            return;
+                          }
+
+                          // Join the project
+                          await ApiService.joinProjectWithInviteLink(code);
+
+                          setState(() => isJoining = false);
+
+                          if (context.mounted) {
+                            Navigator.pop(context); // close dialog
+                            // Navigate directly to project details
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ProjectDetailScreen(
+                                    projectId: project.id),
+                              ),
+                            );
+                          }
+                        },
+                  icon: isJoining
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.login, size: 18),
+                  label: Text(isJoining ? 'Joining...' : 'Join Project'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF23393E),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
 }

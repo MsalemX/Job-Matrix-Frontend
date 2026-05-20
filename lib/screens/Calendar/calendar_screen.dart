@@ -25,59 +25,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final projects = await ApiService.getMyProjects();
-      List<TaskModel> tasksList = [];
-      for (var project in projects) {
-        final sections = await ApiService.getSections(project.id);
-        for (var section in sections) {
-          tasksList.addAll(section.tasks);
-        }
-      }
+      final tasksList = await ApiService.getMyTasks();
 
-      // Mocking some dates for demo to match the screenshot
-      final now = DateTime.now();
-      List<TaskModel> updatedTasks = [];
-      for (int i = 0; i < tasksList.length; i++) {
-        final task = tasksList[i];
-        DateTime? mockDate;
-
-        // Match screenshot tasks if names match, otherwise spread
-        if (task.name.contains('Kickoff')) {
-          mockDate = DateTime(2026, 1, 1);
-        } else if (task.name.contains('Sprint')) {
-          mockDate = DateTime(2026, 1, 2);
-        } else if (task.name.contains('Deployment')) {
-          mockDate = DateTime(2026, 1, 9);
-        } else if (task.name.contains('Deadline')) {
-          mockDate = DateTime(2026, 1, 11);
-        } else if (task.name.contains('Documentation')) {
-          mockDate = DateTime(2026, 1, 17);
-        } else {
-          // Default mock date for others
-          mockDate = DateTime(now.year, now.month, (i % 28) + 1);
-        }
-
-        updatedTasks.add(
-          TaskModel(
-            id: task.id,
-            projectId: task.projectId,
-            sectionId: task.sectionId,
-            name: task.name,
-            description: task.description,
-            status: task.status,
-            dependsOn: task.dependsOn,
-            attachments: task.attachments,
-            dueDate: task.dueDate ?? mockDate,
-            color: task.color,
-          ),
-        );
-      }
+      // Only include tasks that have a deadline (dueDate)
+      List<TaskModel> updatedTasks = tasksList.where((task) => task.dueDate != null).toList();
 
       if (mounted) {
         setState(() {
           _allTasks = updatedTasks;
           _isLoading = false;
-          // Use current date by default instead of 2026
           _focusedDate = DateTime.now();
         });
       }

@@ -77,9 +77,11 @@ class TaskModel {
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       status: json['status'] ?? 'pending',
-      dependsOn: (json['depends_on'] is List)
-          ? List<int>.from(json['depends_on'])
-          : [],
+      dependsOn: (json['dependencies'] is List)
+          ? (json['dependencies'] as List).map<int>((d) => d['depends_on_task_id'] as int).toList()
+          : (json['depends_on'] is List)
+              ? List<int>.from(json['depends_on'])
+              : [],
       attachments: (json['attachments'] is List)
           ? (json['attachments'] as List)
                 .map((i) => AttachmentModel.fromJson(i))

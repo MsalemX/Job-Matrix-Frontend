@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../models/project_model.dart';
 import '../../models/task_model.dart';
@@ -8,11 +9,13 @@ import '../Profile/user_profile_screen.dart';
 import 'widgets/create_section_dialog.dart';
 import 'widgets/create_task_dialog.dart';
 import '../Tasks/task_detail_screen.dart';
+import '../widgets/report_dialog.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final int projectId;
+  final String? inviteCode;
 
-  const ProjectDetailScreen({super.key, required this.projectId});
+  const ProjectDetailScreen({super.key, required this.projectId, this.inviteCode});
 
   @override
   State<ProjectDetailScreen> createState() => _ProjectDetailScreenState();
@@ -199,9 +202,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             color: Color(0xFF23393E),
           ),
         ),
-        if (_isAdmin)
-          Row(
-            children: [
+        Row(
+          children: [
+            if (_isAdmin) ...[
               ElevatedButton.icon(
                 onPressed: () {
                   if (_project != null) {
@@ -227,8 +230,6 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Group Avatars placeholder
-              const SizedBox(width: 12),
               ElevatedButton.icon(
                 onPressed: _showRequestsDialog,
                 icon: const Icon(Icons.person_add_outlined, size: 18),
@@ -249,8 +250,25 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   ),
                 ),
               ),
+              const SizedBox(width: 12),
             ],
-          ),
+            if (!_isAdmin)
+              IconButton(
+                onPressed: () {
+                  if (_project != null) {
+                    showReportDialog(
+                      context,
+                      _project!.id,
+                      'project',
+                      _project!.name,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.report_problem_outlined, color: Colors.red),
+                tooltip: 'Report Project',
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -902,9 +920,22 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Future<void> _handleJoinRequest() async {
-    final success = await ApiService.joinProject(widget.projectId);
-    if (success) {
+    bool success = false;
+    if (widget.inviteCode != null && widget.inviteCode!.isNotEmpty) {
+      success = await ApiService.joinProjectWithInviteLink(widget.inviteCode!);
+    } else {
+      success = await ApiService.joinProject(widget.projectId);
+    }
+    
+    if (success && mounted) {
       _loadProjectData();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.inviteCode != null ? 'Successfully joined the project!' : 'Join request sent successfully')),
+      );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to join or send request')),
+      );
     }
   }
 
@@ -1463,35 +1494,99 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog>
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _usernameController,
-                  onSubmitted: (_) => _sendInvite(),
-                  decoration: InputDecoration(
-                    hintText: 'Enter username...',
-                    prefixIcon: const Icon(Icons.alternate_email, size: 20),
-                    prefixText: '',
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF23393E),
-                        width: 2,
+                child: Autocomplete<User>(
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<User>.empty();
+                    }
+                    return await ApiService.searchUsers(textEditingValue.text);
+                  },
+                  displayStringForOption: (User option) => option.username,
+                  onSelected: (User selection) {
+                    _usernameController.text = selection.username;
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    // Sync controllers so the external "Send" button uses the selected value
+                    _usernameController.value = controller.value;
+                    controller.addListener(() {
+                      _usernameController.text = controller.text;
+                    });
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      onSubmitted: (_) {
+                        onFieldSubmitted();
+                        _sendInvite();
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search username or email...',
+                        prefixIcon: const Icon(Icons.alternate_email, size: 20),
+                        prefixText: '',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF23393E),
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
                       ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 300,
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final User option = options.elementAt(index);
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage: option.profile?.profileImage != null
+                                      ? NetworkImage(option.profile!.profileImage!)
+                                      : null,
+                                  backgroundColor: const Color(0xFF23393E),
+                                  child: option.profile?.profileImage == null
+                                      ? Text(
+                                          option.username.substring(0, 1).toUpperCase(),
+                                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(option.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                subtitle: Text('@${option.username}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                onTap: () {
+                                  onSelected(option);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 10),

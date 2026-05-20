@@ -128,10 +128,19 @@ class Profile {
           .cast<String>();
     }
 
+    String? img = json['profile_image'] ?? json['avatar'] ?? json['image'];
+    if (img != null) {
+      if (img.startsWith('http://127.0.0.1:8000/storage/')) {
+        img = img.replaceFirst('/storage/', '/api/storage/');
+      } else if (img.startsWith('http://localhost/storage/')) {
+        img = img.replaceFirst('http://localhost/storage/', 'http://127.0.0.1:8000/api/storage/');
+      }
+    }
+
     return Profile(
       id: json['id'] ?? 0,
       userId: json['user_id'] ?? 0,
-      profileImage: json['profile_image'] ?? json['avatar'] ?? json['image'],
+      profileImage: img,
       bio: json['bio'],
       points: json['points'] ?? 0,
       skills: skillsList,

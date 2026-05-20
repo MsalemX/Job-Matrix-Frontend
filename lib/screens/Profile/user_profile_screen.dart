@@ -6,6 +6,7 @@ import '../../models/project_model.dart';
 import '../Conversations/conversations_screen.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
+import '../widgets/report_dialog.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final int userId;
@@ -211,9 +212,40 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          _buildBadge(
-                              Icons.email_outlined, _user?.email ?? ''),
+                          ElevatedButton.icon(
+                            onPressed: () => showReportDialog(
+                              context,
+                              _user!.id,
+                              'user',
+                              _user!.name,
+                            ),
+                            icon: const Icon(
+                              Icons.report_problem_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Report'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.withAlpha(200),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                           const SizedBox(width: 12),
+                          if (_user?.email != null && _user!.email.isNotEmpty) ...[
+                            _buildBadge(
+                                Icons.email_outlined, _user!.email),
+                            const SizedBox(width: 12),
+                          ],
                           // Points badge
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -280,7 +312,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           _sectionTitle(Icons.assignment_ind_outlined, 'Biography'),
           const SizedBox(height: 20),
           Text(
-            _user?.profile?.bio ?? 'No bio added yet.',
+            _user?.profile?.bio ?? '',
             style: const TextStyle(
                 fontSize: 14, height: 1.8, color: Colors.black87),
           ),

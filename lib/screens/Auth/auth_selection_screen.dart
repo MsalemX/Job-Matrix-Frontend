@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import '../widgets/auth_background.dart';
 import 'register_screen.dart';
 import 'login_screen.dart';
+import 'package:job_matrix_forntend/services/api_service.dart';
+import 'package:provider/provider.dart';
+import 'package:job_matrix_forntend/services/auth_provider.dart';
+import 'package:job_matrix_forntend/screens/Dashboard/user_dashboard_screen.dart';
+import 'package:job_matrix_forntend/screens/Dashboard/admin_dashboard_screen.dart';
 
 class AuthSelectionScreen extends StatelessWidget {
   const AuthSelectionScreen({super.key});
@@ -26,7 +31,41 @@ class AuthSelectionScreen extends StatelessWidget {
           ),
           const SizedBox(height: 40),
           _buildButton(
-            onPressed: () {},
+            onPressed: () async {
+              print('DEBUG: Google AuthSelection Button Pressed');
+              final authResponse = await ApiService.loginWithGoogle();
+
+              if (authResponse == null) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Google Sign-In was cancelled or failed.'),
+                    ),
+                  );
+                }
+                return;
+              }
+
+              final authProvider = context.read<AuthProvider>();
+              authProvider.setAuth(authResponse.user, authResponse.accessToken);
+
+              if (context.mounted) {
+                final user = authProvider.user;
+                final role = user?.role.toLowerCase().trim() ?? 'user';
+
+                Widget nextScreen;
+                if (role == 'admin' || role == 'system_admin' || role == 'system admin') {
+                  nextScreen = const AdminDashboardScreen();
+                } else {
+                  nextScreen = const UserDashboardScreen();
+                }
+
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => nextScreen),
+                );
+              }
+            },
             icon: Image.asset('assets/images/google.png', height: 24),
             backgroundColor: const Color(0xFFCFD8DC),
             text: 'Continue with google',

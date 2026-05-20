@@ -43,6 +43,7 @@ dependencies:
   url_launcher: ^6.3.2
   file_picker: ^10.3.10
   google_generative_ai: ^0.4.5
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/api_service.dart';
+import '../../../models/user_model.dart';
 
 class CreateProjectDialog extends StatefulWidget {
   final VoidCallback? onProjectCreated;
@@ -226,6 +227,10 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       'skills': selectedSkills,
     });
     if (result != null && mounted) {
+      // Send invitations to added members
+      for (final member in invitedMembers) {
+        await ApiService.inviteMemberByUsername(result.id, member);
+      }
       widget.onProjectCreated?.call();
       Navigator.pop(context);
     } else {
@@ -430,7 +435,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Search by Username',
+            'Search by Username or Email',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -441,16 +446,85 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: inviteController,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: _dialogInput('e.g. @sarah_dev').copyWith(
-                    prefixIcon: Icon(
-                      Icons.person_outline,
-                      size: 18,
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
+                child: Autocomplete<User>(
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<User>.empty();
+                    }
+                    return await ApiService.searchUsers(textEditingValue.text);
+                  },
+                  displayStringForOption: (User option) => option.username,
+                  onSelected: (User selection) {
+                    if (!invitedMembers.contains(selection.username)) {
+                      setState(() {
+                        invitedMembers.add(selection.username);
+                      });
+                    }
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    // Update our inviteController with the autocomplete's controller so Add button works
+                    inviteController.value = controller.value;
+                    controller.addListener(() {
+                      inviteController.text = controller.text;
+                    });
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: _dialogInput('e.g. @sarah_dev or email...').copyWith(
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          size: 18,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                      onSubmitted: (value) {
+                        onFieldSubmitted();
+                        _addMember();
+                      },
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 300,
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final User option = options.elementAt(index);
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage: option.profile?.profileImage != null
+                                      ? NetworkImage(option.profile!.profileImage!)
+                                      : null,
+                                  backgroundColor: const Color(0xFF23393E),
+                                  child: option.profile?.profileImage == null
+                                      ? Text(
+                                          option.username.substring(0, 1).toUpperCase(),
+                                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(option.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                subtitle: Text('@${option.username}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                onTap: () {
+                                  onSelected(option);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 8),

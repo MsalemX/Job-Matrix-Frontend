@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:job_matrix_forntend/services/api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:job_matrix_forntend/screens/widgets/auth_background.dart';
 import 'package:job_matrix_forntend/services/auth_provider.dart';
@@ -49,6 +50,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SnackBar(
           content: Text('Registration failed. Please check your details.'),
         ),
+      );
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    print('DEBUG: Google Sign-In Button Pressed');
+
+    // Call Google Sign-In IMMEDIATELY to satisfy browser user gesture requirements
+    final authResponse = await ApiService.loginWithGoogle();
+
+    if (authResponse == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google Sign-In was cancelled or failed.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    authProvider.setAuth(authResponse.user, authResponse.accessToken);
+
+    if (mounted) {
+      final user = authProvider.user;
+      final role = user?.role.toLowerCase().trim() ?? 'user';
+
+      Widget nextScreen;
+      if (role == 'admin' || role == 'system_admin' || role == 'system admin') {
+        nextScreen = const AdminDashboardScreen();
+      } else {
+        nextScreen = const UserDashboardScreen();
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => nextScreen),
       );
     }
   }
@@ -147,7 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: isLoading ? null : _handleGoogleLogin,
                 icon: Image.asset('assets/images/google.png', height: 20),
                 label: const Text('Continue with google'),
                 style: ElevatedButton.styleFrom(

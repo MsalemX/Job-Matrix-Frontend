@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 class AIService {
-  static const String _apiKey = 'AIzaSyD501LHuReylkx8ElCGO5L6Prak0YBDXN4';
+  static const String _apiKey = 'AIzaSyD7mO0K_xls_GxMvZs1db1bslCl-Y4xhO8';
 
   /// Validates if the uploaded file content matches the task requirements.
   /// Returns a Map with 'isValid' (bool) and 'reason' (String).
@@ -13,12 +13,10 @@ class AIService {
     required String taskDescription,
   }) async {
     try {
-      final model = GenerativeModel(
-        model: 'gemini-2.5-flash',
-        apiKey: _apiKey,
-      );
+      final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: _apiKey);
 
-      final prompt = '''
+      final prompt =
+          '''
 You are a technical task validator. Your job is to verify if an uploaded file matches the requirements of a specific task.
 
 Task Name: $taskName

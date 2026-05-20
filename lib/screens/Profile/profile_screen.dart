@@ -152,15 +152,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Colors.white24,
                     shape: BoxShape.circle,
                   ),
-                  child: CircleAvatar(
-                    radius: 80,
-                    backgroundColor: Colors.white,
-                    backgroundImage: _user?.profile?.profileImage != null
-                        ? NetworkImage(_user!.profile!.profileImage!)
-                        : null,
-                    child: _user?.profile?.profileImage == null
-                        ? const Icon(Icons.person, size: 80, color: Colors.grey)
-                        : null,
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: _user?.profile?.profileImage != null
+                          ? Image.network(
+                              _user!.profile!.profileImage!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.person, size: 80, color: Colors.grey),
+                            )
+                          : const Icon(Icons.person, size: 80, color: Colors.grey),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 32),
@@ -170,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _user?.name ?? 'Mohammed Salem',
+                        _user?.name ?? '',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 48,
@@ -178,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       Text(
-                        _user?.username.toUpperCase() ?? 'USERNAME',
+                        _user?.username != null ? '@${_user!.username.toUpperCase()}' : '',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 18,
@@ -187,16 +195,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 24),
                       Row(
                         children: [
-                          _buildHeaderBadge(
-                            Icons.email_outlined,
-                            _user?.email ?? 'bnwbsalm9@gmail.com',
-                          ),
-                          const SizedBox(width: 16),
-                          _buildHeaderBadge(
-                            Icons.location_on_outlined,
-                            'Yemen-Mukalla',
-                          ),
-                          const SizedBox(width: 16),
+                          if (_user?.email != null && _user!.email.isNotEmpty) ...[
+                            _buildHeaderBadge(
+                              Icons.email_outlined,
+                              _user!.email,
+                            ),
+                            const SizedBox(width: 16),
+                          ],
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
@@ -273,8 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            _user?.profile?.bio ??
-                'Results-oriented Senior Project Manager with over 10 years of experience in leading cross-functional teams to deliver high-impact software solutions. Specialized in Agile methodologies, resource optimization, and strategic product roadmapping.',
+            _user?.profile?.bio ?? '',
             style: const TextStyle(
               fontSize: 14,
               height: 1.8,

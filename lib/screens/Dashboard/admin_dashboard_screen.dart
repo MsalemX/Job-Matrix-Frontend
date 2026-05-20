@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:job_matrix_forntend/services/api_service.dart';
-import 'package:job_matrix_forntend/screens/Auth/login_screen.dart';
 import 'package:job_matrix_forntend/models/user_model.dart';
 import 'package:job_matrix_forntend/models/project_model.dart';
-import 'package:job_matrix_forntend/screens/Dashboard/admin_profile_screen.dart';
+import 'package:job_matrix_forntend/providers/language_provider.dart';
+import 'package:job_matrix_forntend/widgets/admin_top_nav.dart';
+import 'package:provider/provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -50,11 +51,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final langProvider = Provider.of<LanguageProvider>(context);
     return Scaffold(
       backgroundColor: const Color(0xFFC7CDCA),
       body: Column(
         children: [
-          _buildTopNav(context),
+          const AdminTopNav(activeItem: 'Dashboard'),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -66,31 +68,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'System Overview',
-                            style: TextStyle(
+                          Text(
+                            langProvider.translate('system_overview'),
+                            style: const TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF33423E),
                             ),
                           ),
-                          const Text(
-                            'Real-time performance metrics and recent administrative activity.',
-                            style: TextStyle(color: Color(0xFF7A8B86)),
+                          Text(
+                            langProvider.translate('real_time_metrics'),
+                            style: const TextStyle(color: Color(0xFF7A8B86)),
                           ),
                           const SizedBox(height: 48),
-                          _buildOverviewCards(),
+                          _buildOverviewCards(langProvider),
                           const SizedBox(height: 48),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(child: _buildRecentProjects()),
+                              Expanded(
+                                child: _buildRecentProjects(langProvider),
+                              ),
                               const SizedBox(width: 40),
-                              Expanded(child: _buildNewUsers()),
+                              Expanded(child: _buildNewUsers(langProvider)),
                             ],
                           ),
                           const SizedBox(height: 80),
-                          _buildFooter(),
+                          _buildFooter(langProvider),
                         ],
                       ),
                     ),
@@ -101,110 +105,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildTopNav(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-      color: const Color(0xFF33423E),
-      child: Row(
-        children: [
-          const Icon(Icons.grid_view_sharp, color: Colors.white, size: 28),
-          const SizedBox(width: 12),
-          const Text(
-            'Job Matrix',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 24),
-          _buildSearchField(),
-          const Spacer(),
-          _buildNavItem('Dashboard', isActive: true),
-          _buildNavItem('Users'),
-          _buildNavItem('Projects'),
-          _buildNavItem('Reports'),
-          const SizedBox(width: 24),
-          ElevatedButton(
-            onPressed: () async {
-              await ApiService.logout();
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF423333),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            child: const Text('Logout'),
-          ),
-          const SizedBox(width: 24),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AdminProfileScreen(),
-                ),
-              );
-            },
-            child: const CircleAvatar(
-              radius: 18,
-              backgroundImage: AssetImage('assets/images/team/team_1.jpg'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchField() {
-    return Container(
-      width: 240,
-      height: 40,
-      decoration: BoxDecoration(
-        color: const Color(0xFF455551),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: const TextField(
-        decoration: InputDecoration(
-          hintText: 'Search resources...',
-          hintStyle: TextStyle(color: Color(0xFF7A8B86), fontSize: 13),
-          prefixIcon: Icon(Icons.search, color: Color(0xFF7A8B86), size: 18),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 10),
-        ),
-        style: TextStyle(color: Colors.white, fontSize: 13),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String title, {bool isActive = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: isActive ? Colors.white : const Color(0xFF7A8B86),
-          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          fontSize: 14,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverviewCards() {
+  Widget _buildOverviewCards(LanguageProvider langProvider) {
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
-            'TOTAL PROJECTS',
+            langProvider.translate('total_projects'),
             _projects.length.toString(),
             Icons.folder_open,
           ),
@@ -212,7 +118,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(width: 24),
         Expanded(
           child: _buildStatCard(
-            'TOTAL USERS',
+            langProvider.translate('total_users'),
             _users.length.toString(),
             Icons.people_outline,
           ),
@@ -259,7 +165,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildRecentProjects() {
+  Widget _buildRecentProjects(LanguageProvider langProvider) {
     // Show last 5 projects
     final recentProjects = _projects.reversed.take(5).toList();
 
@@ -269,9 +175,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Recent Projects',
-              style: TextStyle(
+            Text(
+              langProvider.translate('recent_projects'),
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF33423E),
@@ -279,9 +185,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             TextButton(
               onPressed: () {},
-              child: const Text(
-                'View All',
-                style: TextStyle(color: Color(0xFF7A8B86)),
+              child: Text(
+                langProvider.translate('view_all'),
+                style: const TextStyle(color: Color(0xFF7A8B86)),
               ),
             ),
           ],
@@ -345,7 +251,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildNewUsers() {
+  Widget _buildNewUsers(LanguageProvider langProvider) {
     // Show last 5 users
     final newUsers = _users.reversed.take(5).toList();
 
@@ -355,9 +261,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'New Users',
-              style: TextStyle(
+            Text(
+              langProvider.translate('new_users'),
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF33423E),
@@ -365,9 +271,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             TextButton(
               onPressed: () {},
-              child: const Text(
-                'View All',
-                style: TextStyle(color: Color(0xFF7A8B86)),
+              child: Text(
+                langProvider.translate('view_all'),
+                style: const TextStyle(color: Color(0xFF7A8B86)),
               ),
             ),
           ],
@@ -433,31 +339,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildFooter() {
-    return const Column(
+  Widget _buildFooter(LanguageProvider langProvider) {
+    return Column(
       children: [
-        Divider(height: 1, color: Color(0xFF7A8B86)),
+        const Divider(height: 1, color: Color(0xFF7A8B86)),
         Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
+          padding: const EdgeInsets.symmetric(vertical: 24),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 '© 2026 Job Matrix. Confidential Access Only.',
                 style: TextStyle(color: Color(0xFF7A8B86), fontSize: 13),
               ),
               Row(
                 children: [
                   Text(
-                    'Server Status: Online',
-                    style: TextStyle(
+                    '${langProvider.translate('server_status')}: ${langProvider.translate('online')}',
+                    style: const TextStyle(
                       color: Color(0xFF33423E),
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Text(
+                  const SizedBox(width: 12),
+                  const Text(
                     'V1.0',
                     style: TextStyle(color: Color(0xFF7A8B86), fontSize: 13),
                   ),

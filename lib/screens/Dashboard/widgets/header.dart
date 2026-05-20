@@ -184,37 +184,32 @@ class _HeaderState extends State<Header> {
 
   Widget _buildAvatar() {
     final imageUrl = _user?.profile?.profileImage;
+    final name = _user?.name ?? '';
+    final fallback = CircleAvatar(
+      radius: 18,
+      backgroundColor: const Color(0xFF23393E),
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+    );
 
     if (imageUrl != null && imageUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundImage: NetworkImage(imageUrl),
-        backgroundColor: const Color(0xFF90A4AE),
-        onBackgroundImageError: (_, __) {},
-      );
-    }
-
-    // Fallback: initials or icon
-    final name = _user?.name ?? '';
-    if (name.isNotEmpty) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundColor: const Color(0xFF23393E),
-        child: Text(
-          name[0].toUpperCase(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
+      return ClipOval(
+        child: Image.network(
+          imageUrl,
+          width: 36,
+          height: 36,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => fallback,
         ),
       );
     }
 
-    return const CircleAvatar(
-      radius: 18,
-      backgroundColor: Color(0xFF90A4AE),
-      child: Icon(Icons.person, color: Colors.white, size: 20),
-    );
+    return fallback;
   }
 }

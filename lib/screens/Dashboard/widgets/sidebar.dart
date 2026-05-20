@@ -11,6 +11,7 @@ import '../../Conversations/conversations_screen.dart';
 import '../user_dashboard_screen.dart';
 import '../../Profile/profile_screen.dart';
 import '../../Auth/login_screen.dart';
+import '../admin_reports_screen.dart';
 
 class Sidebar extends StatelessWidget {
   final String currentRoute;
@@ -53,6 +54,9 @@ class Sidebar extends StatelessWidget {
         break;
       case 'conversations':
         target = const ConversationsScreen();
+        break;
+      case 'admin_reports':
+        target = const AdminReportsScreen();
         break;
       default:
         target = const UserDashboardScreen(); // Fallback
@@ -191,6 +195,32 @@ class Sidebar extends StatelessWidget {
                         route: 'conversations',
                         badgeCount: count > 0 ? count : null,
                       );
+                    },
+                  ),
+
+                  // Admin Section
+                  FutureBuilder(
+                    future: ApiService.getMyProfile(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData &&
+                          snapshot.data?.role == 'system_admin') {
+                        return Column(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              child: Divider(color: Colors.white12),
+                            ),
+                            _buildNavItem(
+                              context,
+                              Icons.admin_panel_settings_outlined,
+                              'Admin Reports',
+                              route: 'admin_reports',
+                            ),
+                          ],
+                        );
+                      }
+                      return const SizedBox.shrink();
                     },
                   ),
 

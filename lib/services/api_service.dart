@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../models/project_model.dart';
 import '../models/task_model.dart';
@@ -8,7 +10,13 @@ import '../models/chat_model.dart';
 import '../models/activity_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.226.1:8000/api';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:8000/api';
+    } else {
+      return 'http://10.0.2.2:8000/api';
+    }
+  }
 
   static Future<Map<String, String>> _getHeaders() async {
     final token = await getToken();
@@ -32,10 +40,15 @@ class ApiService {
           .post(
             uri,
             headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
-            body: {'login': login, 'password': password},
+            body: jsonEncode({
+              'email': login, // Try email
+              'username': login, // Try username
+              'login': login, // Keep login just in case
+              'password': password,
+            }),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -90,13 +103,15 @@ class ApiService {
         await saveToken(authResponse.accessToken);
         return authResponse;
       } else {
-        print('Registration failed with status: ${response.statusCode}');
-        print('Response body: ${response.body}');
+        final errorData = jsonDecode(response.body);
+        final errorMessage = errorData['message'] ?? 'Registration failed';
+        print('Registration error: $errorMessage');
+        // You can throw an exception to catch it in the UI and show the message
+        throw Exception(errorMessage);
       }
-      return null;
     } catch (e) {
       print('Error during registration: $e');
-      return null;
+      rethrow; // Rethrow to handle it in the UI
     }
   }
 
@@ -105,21 +120,91 @@ class ApiService {
       await http.post(
         Uri.parse('$baseUrl/logout'),
         headers: await _getHeaders(),
-      );
+      ).timeout(const Duration(seconds: 5));
     } finally {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
     }
   }
 
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId:
+        '885186570306-hqm7dv76al6neuhakhjkgs8v3i7um6cv.apps.googleusercontent.com',
+    serverClientId: kIsWeb
+        ? null
+        : '885186570306-hqm7dv76al6neuhakhjkgs8v3i7um6cv.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
+  );
+
+  static Future<AuthResponse?> loginWithGoogle() async {
+    try {
+      print('Starting Google Sign-In...');
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      print('Google User: $googleUser');
+      if (googleUser == null) return null;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+      final String? accessToken = googleAuth.accessToken;
+
+      print('ID Token received: ${idToken != null}');
+      print('Access Token received: ${accessToken != null}');
+
+      if (idToken == null && accessToken == null) return null;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/google'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'id_token': idToken, 'access_token': accessToken}),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final authResponse = AuthResponse.fromJson(data);
+        await saveToken(authResponse.accessToken);
+        return authResponse;
+      } else {
+        print('Google login failed on backend: ${response.body}');
+      }
+    } catch (e, stack) {
+      print('CRITICAL: Error during Google Sign-In: $e');
+      print('Stack trace: $stack');
+    }
+    return null;
+  }
+
   // --- Profiles ---
+
+  static Future<List<User>> searchUsers(String query) async {
+    try {
+      if (query.isEmpty) return [];
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/search?q=${Uri.encodeComponent(query)}'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> && decoded.containsKey('users')) {
+          final List usersData = decoded['users'];
+          return usersData.map((json) => User.fromJson(json)).toList();
+        }
+      }
+    } catch (e) {
+      print('Error searching users: $e');
+    }
+    return [];
+  }
 
   static Future<User?> getMyProfile() async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/profile'),
         headers: await _getHeaders(),
-      );
+      ).timeout(const Duration(seconds: 10));
       print('Profile status: ${response.statusCode}');
       print('Profile body: ${response.body}');
       if (response.statusCode == 200) {
@@ -149,8 +234,11 @@ class ApiService {
     return null;
   }
 
-  static Future<User?> updateProfile(Map<String, dynamic> profileData,
-      {List<int>? imageBytes, String? imageFileName}) async {
+  static Future<User?> updateProfile(
+    Map<String, dynamic> profileData, {
+    List<int>? imageBytes,
+    String? imageFileName,
+  }) async {
     try {
       final uri = Uri.parse('$baseUrl/profile');
       final headers = await _getHeaders();
@@ -174,11 +262,13 @@ class ApiService {
         });
 
         // Add avatar file
-        request.files.add(http.MultipartFile.fromBytes(
-          'avatar',
-          imageBytes,
-          filename: imageFileName ?? 'avatar.jpg',
-        ));
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'avatar',
+            imageBytes,
+            filename: imageFileName ?? 'avatar.jpg',
+          ),
+        );
 
         print('Sending Multipart Request: ${request.fields}');
         final streamedResponse = await request.send();
@@ -226,7 +316,8 @@ class ApiService {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         // API returns { "user": { ... } }
-        final userJson = decoded is Map<String, dynamic> && decoded.containsKey('user')
+        final userJson =
+            decoded is Map<String, dynamic> && decoded.containsKey('user')
             ? decoded['user']
             : decoded;
         return User.fromJson(userJson);
@@ -447,7 +538,7 @@ class ApiService {
   static Future<ProjectModel?> getProject(int projectId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/projects/$projectId?include=sections.tasks'),
+        Uri.parse('$baseUrl/projects/$projectId?include=user,sections.tasks,participants.user'),
         headers: await _getHeaders(),
       );
       if (response.statusCode == 200) {
@@ -514,7 +605,7 @@ class ApiService {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/projects/$projectId/invite'),
+        Uri.parse('$baseUrl/projects/$projectId/add-by-username'),
         headers: await _getHeaders(),
         body: jsonEncode({'username': username}),
       );
@@ -525,15 +616,51 @@ class ApiService {
     }
   }
 
-  static Future<String?> getInviteLink(int projectId) async {
+  static Future<ProjectModel?> getProjectByInviteLink(String inviteCode) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/projects/$projectId/invite-link'),
+        Uri.parse('$baseUrl/projects/invite/$inviteCode'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded['project'] != null) {
+          return ProjectModel.fromJson(decoded['project']);
+        }
+      }
+    } catch (e) {
+      print('Error getting project by invite: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> joinProjectWithInviteLink(String inviteCode) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/projects/join/$inviteCode'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print('Error joining project by invite: $e');
+      return false;
+    }
+  }
+
+  static Future<String?> getInviteLink(int projectId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/projects/$projectId/invite'),
         headers: await _getHeaders(),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['link'] ?? data['invite_link'] ?? data['url'];
+        final inviteCode = data['invite_link'];
+        if (inviteCode != null) {
+          final origin = Uri.base.origin;
+          // Use hash routing format so it's fully compatible with standard flutter web hosting
+          return '$origin/#/invite/$inviteCode';
+        }
       }
     } catch (e) {
       print('Error getting invite link: $e');
@@ -542,6 +669,25 @@ class ApiService {
   }
 
   // --- Tasks & Sections ---
+
+  static Future<List<TaskModel>> getMyTasks() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/my/tasks'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded['tasks'] != null) {
+          final List data = _extractList(decoded['tasks']);
+          return data.map((json) => TaskModel.fromJson(json)).toList();
+        }
+      }
+    } catch (e) {
+      print('Error getting my tasks: $e');
+    }
+    return [];
+  }
 
   static Future<List<SectionModel>> getSections(int projectId) async {
     try {
@@ -657,22 +803,6 @@ class ApiService {
     }
   }
 
-  static Future<List<TaskModel>> getMyTasks() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/my/tasks'),
-        headers: await _getHeaders(),
-      );
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final List data = _extractList(decoded);
-        return data.map((json) => TaskModel.fromJson(json)).toList();
-      }
-    } catch (e) {
-      print('Error getting my tasks: $e');
-    }
-    return [];
-  }
 
   static Future<TaskModel?> createTask(
     int projectId,
@@ -804,6 +934,88 @@ class ApiService {
     }
   }
 
+  // --- Reports ---
+
+  static Future<Map<String, dynamic>> submitReport({
+    required int reportableId,
+    required String reportableType,
+    required String reason,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reports'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'reportable_id': reportableId,
+          'reportable_type': reportableType,
+          'reason': reason,
+        }),
+      );
+
+      final decoded = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 201 || response.statusCode == 200,
+        'message': decoded['message'] ?? 'Report submitted.',
+      };
+    } catch (e) {
+      print('Error submitting report: $e');
+      return {'success': false, 'message': 'Failed to submit report: $e'};
+    }
+  }
+
+  static Future<List<dynamic>> getAdminReports() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/reports'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      print('Error getting admin reports: $e');
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> resolveReport(
+    int reportId,
+    String action, // 'dismiss' or 'resolve'
+    String? adminNote,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/admin/reports/$reportId/resolve'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'action': action, 'admin_note': adminNote}),
+      );
+
+      final decoded = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': decoded['message'] ?? 'Report updated.',
+      };
+    } catch (e) {
+      print('Error resolving report: $e');
+      return {'success': false, 'message': 'Failed to update report: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> getAdminReportDetails(int reportId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/reports/$reportId'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print('Error getting report details: $e');
+    }
+    return {};
+  }
+
   // --- Messaging ---
 
   static Future<List<ConversationModel>> getConversations() async {
@@ -893,21 +1105,6 @@ class ApiService {
     return null;
   }
 
-  // --- Reports & Activities ---
-
-  static Future<bool> submitReport(Map<String, dynamic> reportData) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/reports'),
-        headers: await _getHeaders(),
-        body: jsonEncode(reportData),
-      );
-      return response.statusCode == 201 || response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
   static Future<List<ActivityModel>> getMyActivities() async {
     try {
       final response = await http.get(
@@ -958,38 +1155,32 @@ class ApiService {
     return [];
   }
 
-  static Future<List<ReportModel>> adminGetReports() async {
+  static Future<bool> adminDeleteUser(int userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/admin/reports'),
+      final response = await http.delete(
+        Uri.parse('$baseUrl/admin/users/$userId'),
         headers: await _getHeaders(),
       );
-      if (response.statusCode == 200) {
-        final List data = jsonDecode(response.body);
-        return data.map((json) => ReportModel.fromJson(json)).toList();
-      }
+      return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Admin: Error getting reports: $e');
-    }
-    return [];
-  }
-
-  static Future<bool> adminResolveReport(
-    int reportId,
-    String action,
-    String? note,
-  ) async {
-    try {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/admin/reports/$reportId/resolve'),
-        headers: await _getHeaders(),
-        body: jsonEncode({'action': action, 'admin_note': note}),
-      );
-      return response.statusCode == 200;
-    } catch (e) {
+      print('Admin: Error deleting user: $e');
       return false;
     }
   }
+
+  static Future<bool> adminDeleteProject(int projectId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/admin/projects/$projectId'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print('Admin: Error deleting project: $e');
+      return false;
+    }
+  }
+
 
   static Future<List<ActivityModel>> adminGetGlobalLogs() async {
     try {

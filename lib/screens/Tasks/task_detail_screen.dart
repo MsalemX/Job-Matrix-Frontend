@@ -25,11 +25,46 @@ class TaskDetailScreen extends StatefulWidget {
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late TaskModel _task;
   bool _isUploading = false;
+  bool _isCheckingDependencies = false;
+  bool _dependenciesCompleted = true;
+  List<TaskModel> _pendingDependencies = [];
 
   @override
   void initState() {
     super.initState();
     _task = widget.task;
+    _checkDependencies();
+  }
+
+  Future<void> _checkDependencies() async {
+    if (_task.dependsOn.isEmpty) return;
+
+    setState(() => _isCheckingDependencies = true);
+    try {
+      final allTasks = await ApiService.getProjectTasks(_task.projectId);
+      
+      List<TaskModel> pending = [];
+      for (var taskId in _task.dependsOn) {
+        try {
+          final dependentTask = allTasks.firstWhere((t) => t.id == taskId);
+          if (dependentTask.status.toLowerCase() != 'completed' && dependentTask.status.toLowerCase() != 'done') {
+            pending.add(dependentTask);
+          }
+        } catch (_) {
+          // Task not found
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _pendingDependencies = pending;
+          _dependenciesCompleted = pending.isEmpty;
+          _isCheckingDependencies = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isCheckingDependencies = false);
+    }
   }
 
   /// Returns true if the file type is blocked (images, audio, video).
@@ -86,10 +121,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 8),
-            _buildAllowedTypeRow(Icons.code, 'Code files (py, js, dart, java, php…)'),
-            _buildAllowedTypeRow(Icons.folder_zip_outlined, 'Archives (zip, rar, tar, 7z…)'),
-            _buildAllowedTypeRow(Icons.picture_as_pdf_outlined, 'Documents (pdf, docx, xlsx…)'),
-            _buildAllowedTypeRow(Icons.text_snippet_outlined, 'Text files (txt, md, json, csv…)'),
+            _buildAllowedTypeRow(
+              Icons.code,
+              'Code files (py, js, dart, java, php…)',
+            ),
+            _buildAllowedTypeRow(
+              Icons.folder_zip_outlined,
+              'Archives (zip, rar, tar, 7z…)',
+            ),
+            _buildAllowedTypeRow(
+              Icons.picture_as_pdf_outlined,
+              'Documents (pdf, docx, xlsx…)',
+            ),
+            _buildAllowedTypeRow(
+              Icons.text_snippet_outlined,
+              'Text files (txt, md, json, csv…)',
+            ),
           ],
         ),
         actions: [
@@ -98,7 +145,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF23393E),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Choose Another File'),
           ),
@@ -114,9 +163,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         children: [
           Icon(icon, size: 16, color: Colors.green.shade600),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 13)),
-          ),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
@@ -142,7 +189,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       }
 
       final fileBytes = file.bytes;
-      
+
       if (fileBytes == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -173,7 +220,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         if (mounted) {
           setState(() => _isUploading = false);
           _showAIValidationFeedback(
-            aiResult['reason'] ?? 'The file does not match the task requirements.',
+            aiResult['reason'] ??
+                'The file does not match the task requirements.',
             aiResult['suggestions'] ?? [],
           );
         }
@@ -191,8 +239,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         // 1. Update backend task status to completed using the member-accessible toggle endpoint
         try {
           // If task isn't already completed/done, toggle it to 'completed'
-          if (_task.status.toLowerCase() != 'completed' && _task.status.toLowerCase() != 'done') {
-            final updatedTask = await ApiService.toggleTaskStatus(_task.projectId, _task.id);
+          if (_task.status.toLowerCase() != 'completed' &&
+              _task.status.toLowerCase() != 'done') {
+            final updatedTask = await ApiService.toggleTaskStatus(
+              _task.projectId,
+              _task.id,
+            );
             if (updatedTask != null) {
               if (mounted) {
                 setState(() {
@@ -221,12 +273,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             _task = _task.copyWith(status: 'completed');
             _isUploading = false;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Task verified and completed!')),
           );
         }
-        
+
         final data = uploadResult['data'];
         if (data != null && data['task'] != null) {
           if (mounted) {
@@ -235,7 +287,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               final taskFromUpload = TaskModel.fromJson(data['task']);
               // But keep our local 'completed' status if the toggle worked
               _task = taskFromUpload.copyWith(
-                status: _task.status == 'completed' ? 'completed' : taskFromUpload.status
+                status: _task.status == 'completed'
+                    ? 'completed'
+                    : taskFromUpload.status,
               );
             });
           }
@@ -263,9 +317,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isUploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -302,7 +356,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   children: [
                     Text(
                       'Reason:',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red.shade700,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(reason, style: const TextStyle(fontSize: 15)),
@@ -313,25 +371,41 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 const SizedBox(height: 20),
                 const Text(
                   'Suggestions for improvement:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF23393E)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF23393E),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                ...suggestions.map((s) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Icon(Icons.check_circle_outline, size: 14, color: Colors.green.shade600),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(s.toString(), style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 13)),
-                      ),
-                    ],
+                ...suggestions.map(
+                  (s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Icon(
+                            Icons.check_circle_outline,
+                            size: 14,
+                            color: Colors.green.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            s.toString(),
+                            style: TextStyle(
+                              color: Colors.black.withOpacity(0.7),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                )),
+                ),
               ],
             ],
           ),
@@ -342,7 +416,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF23393E),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Try Again'),
           ),
@@ -355,8 +431,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUser = authProvider.user;
-    final bool isAssignedToMe = currentUser != null && _task.assignedTo == currentUser.id;
-    
+    final bool isAssignedToMe =
+        currentUser != null && _task.assignedTo == currentUser.id;
+
     final Color primaryColor = const Color(0xFF23393E);
     final Color backgroundColor = const Color(0xFFF4F7F8);
     final Color cardColor = const Color(0xFFD1D1CB);
@@ -368,7 +445,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: primaryColor),
-          onPressed: () => Navigator.pop(context, true), 
+          onPressed: () => Navigator.pop(context, true),
         ),
         title: Text(
           'Task Details',
@@ -396,11 +473,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.folder_outlined, size: 16, color: primaryColor.withOpacity(0.6)),
+                        Icon(
+                          Icons.folder_outlined,
+                          size: 16,
+                          color: primaryColor.withOpacity(0.6),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           widget.projectName,
-                          style: TextStyle(color: primaryColor.withOpacity(0.6), fontSize: 14, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            color: primaryColor.withOpacity(0.6),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         const Spacer(),
                         _buildStatusBadge(_task.status),
@@ -409,17 +494,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     const SizedBox(height: 16),
                     Text(
                       _task.name,
-                      style: TextStyle(color: primaryColor, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     if (_task.dueDate != null) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today_outlined, size: 16, color: primaryColor),
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 16,
+                            color: primaryColor,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Due ${DateFormat('MMM dd, yyyy').format(_task.dueDate!)}',
-                            style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -431,8 +527,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               _buildSectionTitle('Description'),
               const SizedBox(height: 12),
               Text(
-                _task.description.isEmpty ? 'No description provided.' : _task.description,
-                style: TextStyle(color: primaryColor.withOpacity(0.8), fontSize: 16, height: 1.5),
+                _task.description.isEmpty
+                    ? 'No description provided.'
+                    : _task.description,
+                style: TextStyle(
+                  color: primaryColor.withOpacity(0.8),
+                  fontSize: 16,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 32),
               if (_task.skills.isNotEmpty) ...[
@@ -441,39 +543,97 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _task.skills.map((skill) => _buildSkillChip(skill)).toList(),
+                  children: _task.skills
+                      .map((skill) => _buildSkillChip(skill))
+                      .toList(),
                 ),
                 const SizedBox(height: 32),
               ],
               if (_task.attachments.isNotEmpty) ...[
                 _buildSectionTitle('Attachments'),
                 const SizedBox(height: 12),
-                ..._task.attachments.map((att) => _buildAttachmentItem(att)).toList(),
+                ..._task.attachments.map((att) => _buildAttachmentItem(att)),
                 const SizedBox(height: 32),
               ],
-              if (isAssignedToMe && _task.status.toLowerCase() != 'completed' && _task.status.toLowerCase() != 'done') ...[
+              if (isAssignedToMe &&
+                  _task.status.toLowerCase() != 'completed' &&
+                  _task.status.toLowerCase() != 'done') ...[
                 const SizedBox(height: 16),
-                SizedBox(
+                if (_isCheckingDependencies)
+                  const Center(child: CircularProgressIndicator())
+                else if (!_dependenciesCompleted)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Cannot upload files yet. This task depends on the following pending tasks:',
+                                style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.bold, height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ..._pendingDependencies.map((t) => Padding(
+                          padding: const EdgeInsets.only(left: 32, bottom: 4),
+                          child: Text('• ${t.name}', style: TextStyle(color: Colors.orange.shade900)),
+                        )),
+                      ],
+                    ),
+                  )
+                else
+                  SizedBox(
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
                     onPressed: _isUploading ? null : _pickAndUploadFile,
-                    icon: _isUploading 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.cloud_upload_outlined, color: Colors.white),
+                    icon: _isUploading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.cloud_upload_outlined,
+                            color: Colors.white,
+                          ),
                     label: Text(
                       _isUploading ? 'Validating...' : 'Upload Deliverables',
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       elevation: 0,
                     ),
                   ),
                 ),
                 const SizedBox(height: 40),
-              ] else if (_task.status.toLowerCase() == 'completed' || _task.status.toLowerCase() == 'done' || _task.attachments.isNotEmpty) ...[
+              ] else if (_task.status.toLowerCase() == 'completed' ||
+                  _task.status.toLowerCase() == 'done' ||
+                  _task.attachments.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
                   width: double.infinity,
@@ -490,7 +650,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       SizedBox(width: 12),
                       Text(
                         'Task Completed',
-                        style: TextStyle(color: Colors.green, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -507,14 +671,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF23393E)),
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF23393E),
+      ),
     );
   }
 
   Widget _buildStatusBadge(String status) {
     // If there are attachments, we treat it as COMPLETED for the user's view
     String displayStatus = status;
-    if (_task.attachments.isNotEmpty && status.toLowerCase() != 'completed' && status.toLowerCase() != 'done') {
+    if (_task.attachments.isNotEmpty &&
+        status.toLowerCase() != 'completed' &&
+        status.toLowerCase() != 'done') {
       displayStatus = 'completed';
     }
 
@@ -547,7 +717,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
       child: Text(
         displayStatus.toUpperCase(),
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -562,7 +736,11 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       ),
       child: Text(
         skill,
-        style: const TextStyle(fontSize: 13, color: Color(0xFF23393E), fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF23393E),
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }

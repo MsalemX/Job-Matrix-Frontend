@@ -137,7 +137,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
-    final points = int.tryParse(_pointsController.text.trim()) ?? 0;
+    final points = widget.isEditMode ? (int.tryParse(_pointsController.text.trim()) ?? 0) : 10;
     if (name.isEmpty) return;
 
     setState(() => _isLoading = true);
@@ -330,18 +330,20 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
           Row(
             children: [
               Expanded(child: _buildDatePicker()),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  controller: _pointsController,
-                  keyboardType: TextInputType.number,
-                  decoration: _inputDecoration(
-                    'Story Points',
-                    Icons.stars_outlined,
-                    '0',
+              if (widget.isEditMode) ...[
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _pointsController,
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDecoration(
+                      'Story Points',
+                      Icons.stars_outlined,
+                      '0',
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 20),
