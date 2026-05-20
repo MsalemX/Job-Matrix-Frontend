@@ -8,6 +8,7 @@ import '../models/project_model.dart';
 import '../models/task_model.dart';
 import '../models/chat_model.dart';
 import '../models/activity_model.dart';
+import '../models/notification_model.dart';
 
 class ApiService {
   static String get baseUrl {
@@ -305,6 +306,23 @@ class ApiService {
     return null;
   }
 
+  static Future<bool> updateAllowDirectAdd(bool allow) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/profile'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'allow_direct_add': allow}),
+      );
+      if (response.statusCode != 200) {
+        print('Error updating allow_direct_add: ${response.statusCode} - ${response.body}');
+      }
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error updating allow_direct_add: $e');
+      return false;
+    }
+  }
+
   static Future<User?> getUserProfile(int userId) async {
     try {
       final response = await http.get(
@@ -599,7 +617,33 @@ class ApiService {
     }
   }
 
-  static Future<bool> inviteMemberByUsername(
+  static Future<bool> removeParticipant(int projectId, int participantId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/projects/$projectId/participants/$participantId'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print('Error removing participant: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> leaveProject(int projectId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/projects/$projectId/leave'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print('Error leaving project: $e');
+      return false;
+    }
+  }
+
+  static Future<String?> inviteMemberByUsername(
     int projectId,
     String username,
   ) async {
@@ -609,9 +653,31 @@ class ApiService {
         headers: await _getHeaders(),
         body: jsonEncode({'username': username}),
       );
-      return response.statusCode == 200 || response.statusCode == 201;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return null; // success
+      }
+      try {
+        final body = jsonDecode(response.body);
+        return body['message'] ?? 'Could not find user @$username or invitation failed.';
+      } catch (_) {
+        return 'Could not find user @$username or invitation failed.';
+      }
     } catch (e) {
       print('Error inviting member: $e');
+      return 'Network error occurred.';
+    }
+  }
+
+  static Future<bool> resolveInvitation(int projectId, bool accept) async {
+    try {
+      final action = accept ? 'accept' : 'reject';
+      final response = await http.post(
+        Uri.parse('$baseUrl/projects/$projectId/invitations/$action'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print('Error resolving invitation: $e');
       return false;
     }
   }
@@ -1196,6 +1262,63 @@ class ApiService {
       print('Admin: Error getting global logs: $e');
     }
     return [];
+  }
+
+  // --- Notifications ---
+
+  static Future<List<NotificationModel>> getNotifications() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/notifications'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((json) => NotificationModel.fromJson(json)).toList();
+      }
+    } catch (e) {
+      print('Error getting notifications: $e');
+    }
+    return [];
+  }
+
+  static Future<bool> markNotificationAsRead(int notificationId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/notifications/$notificationId/read'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error marking notification as read: $e');
+    }
+    return false;
+  }
+
+  static Future<bool> markAllNotificationsAsRead() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/notifications/read-all'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error marking all notifications as read: $e');
+    }
+    return false;
+  }
+
+  static Future<bool> deleteNotification(int notificationId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/notifications/$notificationId'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error deleting notification: $e');
+    }
+    return false;
   }
 
   // --- Helpers ---

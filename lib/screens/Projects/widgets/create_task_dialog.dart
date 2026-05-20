@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../../services/api_service.dart';
 import '../../../models/project_model.dart';
 import '../../../models/task_model.dart';
+import '../../../providers/language_provider.dart';
 
 class CreateTaskDialog extends StatefulWidget {
   final int projectId;
@@ -137,7 +139,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
-    final points = widget.isEditMode ? (int.tryParse(_pointsController.text.trim()) ?? 0) : 10;
+    const points = 10;
     if (name.isEmpty) return;
 
     setState(() => _isLoading = true);
@@ -327,25 +329,7 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
         children: [
           _buildCardLabel('TASK DETAILS'),
           const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(child: _buildDatePicker()),
-              if (widget.isEditMode) ...[
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: _pointsController,
-                    keyboardType: TextInputType.number,
-                    decoration: _inputDecoration(
-                      'Story Points',
-                      Icons.stars_outlined,
-                      '0',
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+          _buildDatePicker(),
           const SizedBox(height: 20),
           _buildAssigneeDropdown(),
           const SizedBox(height: 20),
@@ -400,19 +384,26 @@ class _CreateTaskDialogState extends State<CreateTaskDialog> {
   }
 
   Widget _buildAssigneeDropdown() {
-    return DropdownButtonFormField<int>(
+    final isArabic = Provider.of<LanguageProvider>(context, listen: false).isArabic;
+    return DropdownButtonFormField<int?>(
       value: _selectedAssigneeId,
       decoration: _inputDecoration(
-        'Assign To',
+        isArabic ? 'توكيل المهمة إلى' : 'Assign To',
         Icons.person_outline,
-        'Select team member',
+        isArabic ? 'اختر عضواً من الفريق' : 'Select team member',
       ),
-      items: widget.participants.map((p) {
-        return DropdownMenuItem<int>(
-          value: p.userId,
-          child: Text(p.user?.name ?? 'Unknown User'),
-        );
-      }).toList(),
+      items: [
+        DropdownMenuItem<int?>(
+          value: null,
+          child: Text(isArabic ? 'لا أحد (غير معين)' : 'No one (Unassigned)'),
+        ),
+        ...widget.participants.map((p) {
+          return DropdownMenuItem<int?>(
+            value: p.userId,
+            child: Text(p.user?.name ?? 'Unknown User'),
+          );
+        }),
+      ],
       onChanged: (val) => setState(() => _selectedAssigneeId = val),
     );
   }

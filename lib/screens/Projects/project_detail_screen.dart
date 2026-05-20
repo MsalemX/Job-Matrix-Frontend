@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:job_matrix_forntend/services/auth_provider.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/user_model.dart';
 import '../../services/api_service.dart';
 import '../../models/project_model.dart';
@@ -15,7 +18,11 @@ class ProjectDetailScreen extends StatefulWidget {
   final int projectId;
   final String? inviteCode;
 
-  const ProjectDetailScreen({super.key, required this.projectId, this.inviteCode});
+  const ProjectDetailScreen({
+    super.key,
+    required this.projectId,
+    this.inviteCode,
+  });
 
   @override
   State<ProjectDetailScreen> createState() => _ProjectDetailScreenState();
@@ -27,6 +34,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   bool _isAdmin = false;
   bool _isMember = false;
   bool _hasPendingRequest = false;
+  bool _isInvited = false;
   List<ParticipantModel> _joinRequests = [];
   bool _isLoading = true;
 
@@ -39,25 +47,58 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   Future<void> _loadProjectData() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Fetch project + sections + all tasks + membership in parallel
-      final results = await Future.wait([
-        ApiService.getProject(widget.projectId),
-        ApiService.getSections(widget.projectId),
-        ApiService.getProjectTasks(widget.projectId),
-        ApiService.getProjectMembership(widget.projectId),
-      ]);
+      ProjectModel? project;
+      List<SectionModel> sections = [];
+      Map<String, dynamic>? membership;
+
+      // 1. Fetch project membership to check current user status
+      membership = await ApiService.getProjectMembership(widget.projectId);
+      final bool isMember = membership?['is_member'] ?? false;
+      final bool isAdmin = membership?['is_admin'] ?? false;
+
+      // 2. Fetch project details
+      if (widget.inviteCode != null &&
+          widget.inviteCode!.isNotEmpty &&
+          !isMember) {
+        // Fetch via secure invite preview link
+        project = await ApiService.getProjectByInviteLink(widget.inviteCode!);
+        if (project != null) {
+          sections = project.sections;
+        }
+      } else {
+        // Standard flow
+        final results = await Future.wait([
+          ApiService.getProject(widget.projectId),
+          ApiService.getSections(widget.projectId),
+          ApiService.getProjectTasks(widget.projectId),
+        ]);
+
+        project = results[0] as ProjectModel?;
+        final fetchedSections = (results[1] as List).cast<SectionModel>();
+        final allTasks = (results[2] as List).cast<TaskModel>();
+
+        // Group tasks by section_id
+        final Map<int, List<TaskModel>> tasksBySectionId = {};
+        for (final task in allTasks) {
+          tasksBySectionId.putIfAbsent(task.sectionId, () => []).add(task);
+        }
+
+        // Build sections with their tasks
+        sections = fetchedSections.map((section) {
+          final tasks = tasksBySectionId[section.id] ?? section.tasks;
+          return SectionModel(
+            id: section.id,
+            projectId: section.projectId,
+            name: section.name,
+            description: section.description,
+            tasks: tasks,
+          );
+        }).toList();
+      }
 
       if (!mounted) return;
 
-      final project = results[0] as ProjectModel?;
-      final sections = (results[1] as List).cast<SectionModel>();
-      final allTasks = (results[2] as List).cast<TaskModel>();
-      final membership = results[3] as Map<String, dynamic>?;
-
-      // 2. Determine roles and permissions from backend authority
-      final bool isAdmin = membership?['is_admin'] ?? false;
-      final bool isMember = membership?['is_member'] ?? false;
-
+      // 3. Determine roles and permissions
       // Get current participant info if any
       final participantJson = membership?['participant'];
       ParticipantModel? myParticipant;
@@ -67,6 +108,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
       final hasPendingRequest = myParticipant?.status == 'pending';
 
+      final isInvited = myParticipant?.status == 'invited';
+
       List<ParticipantModel> joinRequests = [];
       if (isAdmin && project != null) {
         // Collect join requests if current user is admin
@@ -75,30 +118,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             .toList();
       }
 
-      // 3. Group tasks by section_id
-      final Map<int, List<TaskModel>> tasksBySectionId = {};
-      for (final task in allTasks) {
-        tasksBySectionId.putIfAbsent(task.sectionId, () => []).add(task);
-      }
-
-      // 4. Build sections with their tasks
-      final List<SectionModel> sectionsWithTasks = sections.map((section) {
-        final tasks = tasksBySectionId[section.id] ?? section.tasks;
-        return SectionModel(
-          id: section.id,
-          projectId: section.projectId,
-          name: section.name,
-          description: section.description,
-          tasks: tasks,
-        );
-      }).toList();
-
       setState(() {
         _project = project;
-        _sections = sectionsWithTasks;
+        _sections = sections;
         _isAdmin = isAdmin;
         _isMember = isMember;
         _hasPendingRequest = hasPendingRequest;
+        _isInvited = isInvited;
         _joinRequests = joinRequests;
         _isLoading = false;
       });
@@ -208,6 +234,33 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ElevatedButton.icon(
                 onPressed: () {
                   if (_project != null) {
+                    showDialog(
+                      context: context,
+                      builder: (_) => _ShareProjectDialog(
+                        projectId: _project!.id,
+                        projectName: _project!.name,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.share_outlined, size: 18),
+                label: const Text('Share Project'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF23393E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (_project != null) {
                     CreateSectionDialog.show(
                       context,
                       projectId: _project!.id,
@@ -264,7 +317,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     );
                   }
                 },
-                icon: const Icon(Icons.report_problem_outlined, color: Colors.red),
+                icon: const Icon(
+                  Icons.report_problem_outlined,
+                  color: Colors.red,
+                ),
                 tooltip: 'Report Project',
               ),
           ],
@@ -516,11 +572,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   CircleAvatar(
                     radius: 13,
                     backgroundColor: const Color(0xFF23393E),
-                    backgroundImage: assignedUser?.profile?.profileImage != null &&
+                    backgroundImage:
+                        assignedUser?.profile?.profileImage != null &&
                             assignedUser!.profile!.profileImage!.isNotEmpty
                         ? NetworkImage(assignedUser.profile!.profileImage!)
                         : null,
-                    child: (assignedUser?.profile?.profileImage == null ||
+                    child:
+                        (assignedUser?.profile?.profileImage == null ||
                             assignedUser!.profile!.profileImage!.isEmpty)
                         ? Text(
                             assignedName.isNotEmpty
@@ -718,7 +776,6 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                             p.status == 'admin' ||
                             p.status == 'owner',
                       )
-                      .take(4)
                       .map((p) {
                         final pRole = p.role.toLowerCase();
                         final isParticipantOwner =
@@ -733,16 +790,39 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           p.user?.name ?? 'Member',
                           isActuallyAdmin ? 'TEAM ADMIN' : 'TEAM MEMBER',
                           isActuallyAdmin,
+                          participantId: p.id,
+                          isParticipantOwner: isParticipantOwner,
                         );
                       }),
                   const SizedBox(height: 16),
                   if (_isAdmin) ...[
                     if (_joinRequests.isNotEmpty) _buildJoinRequestsList(),
                     _buildInviteButton(),
-                  ] else if (!_isMember && !_hasPendingRequest)
+                  ] else if (_isInvited)
+                    _buildInvitationButtons()
+                  else if (!_isMember && !_hasPendingRequest)
                     _buildJoinButton()
                   else if (_hasPendingRequest)
                     _buildPendingStatus(),
+
+                  if (_isMember && _project != null) ...[
+                    Builder(
+                      builder: (context) {
+                        final currentUserId = Provider.of<AuthProvider>(
+                          context,
+                          listen: false,
+                        ).user?.id;
+                        if (currentUserId != null &&
+                            _project!.userId != currentUserId) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: _buildLeaveButton(),
+                          );
+                        }
+                        return const SizedBox();
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -752,6 +832,86 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildLeaveButton() {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
+    return ElevatedButton.icon(
+      onPressed: _handleLeaveProject,
+      icon: const Icon(Icons.exit_to_app, size: 18),
+      label: Text(isArabic ? 'الخروج من المشروع' : 'Leave Project'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.redAccent,
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Colors.redAccent),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleLeaveProject() async {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withAlpha(150),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isArabic ? 'تأكيد الخروج' : 'Leave Project',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          isArabic
+              ? 'هل أنت متأكد أنك تريد الخروج من هذا المشروع؟'
+              : 'Are you sure you want to leave this project?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(isArabic ? 'خروج' : 'Leave'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await ApiService.leaveProject(widget.projectId);
+      if (success && mounted) {
+        // Just reload the project data so the UI updates to show 'Request to Join'
+        _loadProjectData();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isArabic ? 'فشل الخروج من المشروع' : 'Failed to leave project',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSidebarCard({
@@ -802,10 +962,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Widget _buildJoinButton() {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
+    final String label = isArabic
+        ? 'طلب الانضمام للمشروع'
+        : 'Request to Join Project';
+
     return ElevatedButton.icon(
       onPressed: _handleJoinRequest,
       icon: const Icon(Icons.person_add_outlined, size: 18),
-      label: const Text('Join Project'),
+      label: Text(label),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF23393E),
         foregroundColor: Colors.white,
@@ -816,6 +984,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Widget _buildPendingStatus() {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -826,16 +998,94 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.hourglass_empty, size: 18, color: Colors.orange),
-          SizedBox(width: 8),
+        children: [
+          const Icon(Icons.hourglass_empty, size: 18, color: Colors.orange),
+          const SizedBox(width: 8),
           Text(
-            'Request Pending',
-            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+            isArabic ? 'الطلب قيد الانتظار' : 'Request Pending',
+            style: const TextStyle(
+              color: Colors.orange,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildInvitationButtons() {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isArabic ? 'لقد تمت دعوتك للانضمام' : 'You have been invited to join',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.blueGrey,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _handleResolveInvitation(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF23393E),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(isArabic ? 'قبول' : 'Accept'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _handleResolveInvitation(false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(isArabic ? 'رفض' : 'Reject'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleResolveInvitation(bool accept) async {
+    final success = await ApiService.resolveInvitation(
+      widget.projectId,
+      accept,
+    );
+    if (success && mounted) {
+      _loadProjectData();
+      final isArabic = Provider.of<LanguageProvider>(
+        context,
+        listen: false,
+      ).isArabic;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            accept
+                ? (isArabic ? 'تم قبول الدعوة' : 'Invitation accepted')
+                : (isArabic ? 'تم رفض الدعوة' : 'Invitation rejected'),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildJoinRequestsList() {
@@ -858,7 +1108,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     );
   }
 
-  Widget _buildRequestItem(ParticipantModel req, {VoidCallback? onResolve}) {
+  Widget _buildRequestItem(
+    ParticipantModel req, {
+    VoidCallback? onResolve,
+    BuildContext? dialogCtx,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -869,26 +1123,62 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: const Color(0xFFCFD8DC),
-            backgroundImage: req.user?.profile?.profileImage != null &&
-                    req.user!.profile!.profileImage!.isNotEmpty
-                ? NetworkImage(req.user!.profile!.profileImage!)
-                : null,
-            child: (req.user?.profile?.profileImage == null ||
-                    req.user!.profile!.profileImage!.isEmpty)
-                ? Text(
-                    (req.user?.name ?? '?')[0].toUpperCase(),
-                    style: const TextStyle(fontSize: 10, color: Colors.white),
-                  )
-                : null,
+          GestureDetector(
+            onTap: () {
+              if (req.user != null) {
+                if (dialogCtx != null) {
+                  Navigator.pop(dialogCtx);
+                }
+                navigateToUserProfile(context, req.userId);
+              }
+            },
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: const Color(0xFFCFD8DC),
+                backgroundImage:
+                    req.user?.profile?.profileImage != null &&
+                        req.user!.profile!.profileImage!.isNotEmpty
+                    ? NetworkImage(req.user!.profile!.profileImage!)
+                    : null,
+                child:
+                    (req.user?.profile?.profileImage == null ||
+                        req.user!.profile!.profileImage!.isEmpty)
+                    ? Text(
+                        (req.user?.name ?? '?')[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              req.user?.name ?? 'Unknown',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            child: GestureDetector(
+              onTap: () {
+                if (req.user != null) {
+                  if (dialogCtx != null) {
+                    Navigator.pop(dialogCtx);
+                  }
+                  navigateToUserProfile(context, req.userId);
+                }
+              },
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Text(
+                  req.user?.name ?? 'Unknown',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Colors.black12,
+                  ),
+                ),
+              ),
             ),
           ),
           IconButton(
@@ -920,21 +1210,35 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Future<void> _handleJoinRequest() async {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
     bool success = false;
     if (widget.inviteCode != null && widget.inviteCode!.isNotEmpty) {
       success = await ApiService.joinProjectWithInviteLink(widget.inviteCode!);
     } else {
       success = await ApiService.joinProject(widget.projectId);
     }
-    
+
     if (success && mounted) {
       _loadProjectData();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.inviteCode != null ? 'Successfully joined the project!' : 'Join request sent successfully')),
+        SnackBar(
+          content: Text(
+            isArabic
+                ? 'تم إرسال طلب الانضمام بنجاح!'
+                : 'Join request sent successfully!',
+          ),
+        ),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to join or send request')),
+        SnackBar(
+          content: Text(
+            isArabic ? 'فشل إرسال طلب الانضمام' : 'Failed to send join request',
+          ),
+        ),
       );
     }
   }
@@ -952,6 +1256,73 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     if (success) {
       await _loadProjectData();
       if (onFinish != null) onFinish();
+    }
+  }
+
+  Future<void> _handleRemoveParticipant(int participantId, String name) async {
+    final isArabic = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).isArabic;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          isArabic ? 'إزالة عضو' : 'Remove Member',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          isArabic
+              ? 'هل أنت متأكد أنك تريد إزالة "$name" من المشروع؟'
+              : 'Are you sure you want to remove "$name" from the project?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(isArabic ? 'إزالة' : 'Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await ApiService.removeParticipant(
+        widget.projectId,
+        participantId,
+      );
+      if (success && mounted) {
+        _loadProjectData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isArabic ? 'تم إزالة العضو بنجاح' : 'Member removed successfully',
+            ),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isArabic ? 'فشل إزالة العضو' : 'Failed to remove member',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -1015,6 +1386,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                               (req) => _buildRequestItem(
                                 req,
                                 onResolve: () => setModalState(() {}),
+                                dialogCtx: ctx,
                               ),
                             )
                             .toList(),
@@ -1036,7 +1408,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     );
   }
 
-  Widget _buildMemberItem(int userId, String name, String role, bool isAdmin) {
+  Widget _buildMemberItem(
+    int userId,
+    String name,
+    String role,
+    bool isAdmin, {
+    int? participantId,
+    bool isParticipantOwner = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
@@ -1063,19 +1442,23 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                     : const Color(0xFFCFD8DC),
                 // We need to fetch the participant's profile image
                 // Since _project.participants already has User?, we can use that
-                backgroundImage: _project?.participants
+                backgroundImage:
+                    _project?.participants
                             .firstWhere((p) => p.userId == userId)
                             .user
                             ?.profile
                             ?.profileImage !=
                         null
-                    ? NetworkImage(_project!.participants
-                        .firstWhere((p) => p.userId == userId)
-                        .user!
-                        .profile!
-                        .profileImage!)
+                    ? NetworkImage(
+                        _project!.participants
+                            .firstWhere((p) => p.userId == userId)
+                            .user!
+                            .profile!
+                            .profileImage!,
+                      )
                     : null,
-                child: (_project?.participants
+                child:
+                    (_project?.participants
                             .firstWhere((p) => p.userId == userId)
                             .user
                             ?.profile
@@ -1114,7 +1497,23 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.black26, size: 18),
+              if (_isAdmin && !isParticipantOwner && participantId != null)
+                IconButton(
+                  onPressed: () =>
+                      _handleRemoveParticipant(participantId, name),
+                  icon: const Icon(
+                    Icons.person_remove_outlined,
+                    color: Colors.redAccent,
+                    size: 20,
+                  ),
+                  tooltip: 'Remove Member',
+                )
+              else
+                const Icon(
+                  Icons.chevron_right,
+                  color: Colors.black26,
+                  size: 18,
+                ),
             ],
           ),
         ),
@@ -1296,10 +1695,11 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog>
       _inviteMessage = null;
     });
 
-    final success = await ApiService.inviteMemberByUsername(
+    final errorMsg = await ApiService.inviteMemberByUsername(
       widget.projectId,
       username,
     );
+    final success = errorMsg == null;
 
     if (mounted) {
       setState(() {
@@ -1307,7 +1707,7 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog>
         _inviteSuccess = success;
         _inviteMessage = success
             ? 'Invitation sent to @$username successfully!'
-            : 'Could not find user @$username or invitation failed.';
+            : errorMsg;
       });
       if (success) _usernameController.clear();
     }
@@ -1505,47 +1905,55 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog>
                   onSelected: (User selection) {
                     _usernameController.text = selection.username;
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                    // Sync controllers so the external "Send" button uses the selected value
-                    _usernameController.value = controller.value;
-                    controller.addListener(() {
-                      _usernameController.text = controller.text;
-                    });
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      onSubmitted: (_) {
-                        onFieldSubmitted();
-                        _sendInvite();
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Search username or email...',
-                        prefixIcon: const Icon(Icons.alternate_email, size: 20),
-                        prefixText: '',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF23393E),
-                            width: 2,
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
+                        // Sync controllers so the external "Send" button uses the selected value
+                        _usernameController.value = controller.value;
+                        controller.addListener(() {
+                          _usernameController.text = controller.text;
+                        });
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          onSubmitted: (_) {
+                            onFieldSubmitted();
+                            _sendInvite();
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search username or email...',
+                            prefixIcon: const Icon(
+                              Icons.alternate_email,
+                              size: 20,
+                            ),
+                            prefixText: '',
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade200,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade200,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF23393E),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                    );
-                  },
+                        );
+                      },
                   optionsViewBuilder: (context, onSelected, options) {
                     return Align(
                       alignment: Alignment.topLeft,
@@ -1564,19 +1972,39 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog>
                               return ListTile(
                                 leading: CircleAvatar(
                                   radius: 16,
-                                  backgroundImage: option.profile?.profileImage != null
-                                      ? NetworkImage(option.profile!.profileImage!)
+                                  backgroundImage:
+                                      option.profile?.profileImage != null
+                                      ? NetworkImage(
+                                          option.profile!.profileImage!,
+                                        )
                                       : null,
                                   backgroundColor: const Color(0xFF23393E),
                                   child: option.profile?.profileImage == null
                                       ? Text(
-                                          option.username.substring(0, 1).toUpperCase(),
-                                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                                          option.username
+                                              .substring(0, 1)
+                                              .toUpperCase(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                          ),
                                         )
                                       : null,
                                 ),
-                                title: Text(option.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                                subtitle: Text('@${option.username}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: Text(
+                                  option.name,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '@${option.username}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 onTap: () {
                                   onSelected(option);
                                 },
@@ -1659,6 +2087,258 @@ class _InviteMemberDialogState extends State<_InviteMemberDialog>
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ─── Share Project Dialog ─────────────────────────────────────────────────────
+
+class _ShareProjectDialog extends StatefulWidget {
+  final int projectId;
+  final String projectName;
+
+  const _ShareProjectDialog({
+    required this.projectId,
+    required this.projectName,
+  });
+
+  @override
+  State<_ShareProjectDialog> createState() => _ShareProjectDialogState();
+}
+
+class _ShareProjectDialogState extends State<_ShareProjectDialog> {
+  String? _inviteLink;
+  bool _loadingLink = true;
+  bool _sharing = false;
+  String? _shareMessage;
+  bool _shareSuccess = false;
+  User? _selectedUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInviteLink();
+  }
+
+  Future<void> _fetchInviteLink() async {
+    final link = await ApiService.getInviteLink(widget.projectId);
+    if (mounted) {
+      setState(() {
+        _inviteLink = link;
+        _loadingLink = false;
+      });
+    }
+  }
+
+  Future<void> _shareToUser() async {
+    if (_selectedUser == null || _inviteLink == null) return;
+
+    setState(() {
+      _sharing = true;
+      _shareMessage = null;
+    });
+
+    // Ensure conversation exists or gets created
+    final conv = await ApiService.getOrCreateConversation(_selectedUser!.id);
+    if (conv != null) {
+      // Send the formatted message
+      final content = 'PROJECT_INVITE::${widget.projectName}::$_inviteLink';
+      final msg = await ApiService.sendMessage(conv.id, content);
+      
+      if (mounted) {
+        setState(() {
+          _sharing = false;
+          _shareSuccess = msg != null;
+          _shareMessage = msg != null 
+              ? 'Project shared with @${_selectedUser!.username} successfully!' 
+              : 'Failed to share project. Please try again.';
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _sharing = false;
+          _shareSuccess = false;
+          _shareMessage = 'Could not start conversation with user.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 480,
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Share to Chat',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF23393E),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  splashRadius: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            if (_loadingLink)
+              const Center(child: CircularProgressIndicator())
+            else if (_inviteLink == null)
+              const Text('Could not generate invite link.')
+            else ...[
+              const Text(
+                'Search for a user to share this project with:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 12),
+              Autocomplete<User>(
+                optionsBuilder: (TextEditingValue textEditingValue) async {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<User>.empty();
+                  }
+                  return await ApiService.searchUsers(textEditingValue.text);
+                },
+                displayStringForOption: (User option) => option.name,
+                onSelected: (User selection) {
+                  setState(() {
+                    _selectedUser = selection;
+                  });
+                },
+                fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Search user...',
+                      hintStyle: TextStyle(fontSize: 14, color: Colors.grey.shade400),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey.shade400),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFF23393E), width: 1.5),
+                      ),
+                    ),
+                    onSubmitted: (_) => onFieldSubmitted(),
+                    onChanged: (val) {
+                      if (_selectedUser != null && val != _selectedUser!.name) {
+                        setState(() => _selectedUser = null);
+                      }
+                    },
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 416,
+                        constraints: const BoxConstraints(maxHeight: 250),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final User option = options.elementAt(index);
+                            return ListTile(
+                              leading: CircleAvatar(
+                                radius: 16,
+                                backgroundImage: option.profile?.profileImage != null
+                                    ? NetworkImage(option.profile!.profileImage!)
+                                    : null,
+                                backgroundColor: const Color(0xFF23393E),
+                                child: option.profile?.profileImage == null
+                                    ? Text(
+                                        option.username.substring(0, 1).toUpperCase(),
+                                        style: const TextStyle(color: Colors.white, fontSize: 10),
+                                      )
+                                    : null,
+                              ),
+                              title: Text(option.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              subtitle: Text('@${option.username}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              onTap: () => onSelected(option),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              if (_shareMessage != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _shareSuccess ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _shareMessage!,
+                    style: TextStyle(
+                      color: _shareSuccess ? Colors.green.shade800 : Colors.red.shade800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _sharing || _selectedUser == null ? null : _shareToUser,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF23393E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    disabledBackgroundColor: Colors.grey.shade300,
+                  ),
+                  child: _sharing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Share Project',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

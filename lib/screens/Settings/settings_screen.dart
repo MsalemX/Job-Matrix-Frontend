@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
+import '../../services/auth_provider.dart';
+import '../../services/api_service.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 
@@ -14,6 +18,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _weeklySummary = true;
   bool _compactView = false;
   bool _publicActivity = true;
+  bool _allowDirectAdd = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      setState(() {
+        _allowDirectAdd = authProvider.user?.profile?.allowDirectAdd ?? true;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +64,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildGeneralPreferences() {
+    final isAr = Provider.of<LanguageProvider>(context).isArabic;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -59,9 +77,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 40),
       child: Column(
         children: [
-          const Text(
-            'General Preferences',
-            style: TextStyle(
+          Text(
+            isAr ? 'الإعدادات العامة' : 'General Preferences',
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF23393E),
@@ -69,29 +87,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 48),
           _buildToggleItem(
-            'Desktop Notifications',
-            'Receive real-time alerts on your desktop.',
+            isAr ? 'السماح بالإضافة المباشرة' : 'Allow Direct Additions',
+            isAr
+                ? 'إذا تم تفعيل هذا الخيار، سيتمكن مديرو المشاريع من إضافتك مباشرة عن طريق اسم المستخدم.'
+                : 'Allow project managers to add you directly via username.',
+            _allowDirectAdd,
+            (val) async {
+              setState(() => _allowDirectAdd = val);
+              final success = await ApiService.updateAllowDirectAdd(val);
+              if (!success) {
+                // Revert on failure
+                setState(() => _allowDirectAdd = !val);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isAr
+                            ? 'فشل تحديث الإعدادات'
+                            : 'Failed to update settings',
+                      ),
+                    ),
+                  );
+                }
+              } else {
+                if (mounted) {
+                  Provider.of<AuthProvider>(context, listen: false).updateLocalAllowDirectAdd(val);
+                }
+              }
+            },
+          ),
+          _buildDivider(),
+          _buildToggleItem(
+            isAr ? 'إشعارات سطح المكتب' : 'Desktop Notifications',
+            isAr
+                ? 'استلام تنبيهات فورية على سطح المكتب.'
+                : 'Receive real-time alerts on your desktop.',
             _desktopNotifications,
             (val) => setState(() => _desktopNotifications = val),
           ),
           _buildDivider(),
           _buildToggleItem(
-            'Weekly Summary Email',
-            'A digest of your project progress every Monday.',
+            isAr ? 'ملخص أسبوعي بالبريد' : 'Weekly Summary Email',
+            isAr
+                ? 'ملخص أسبوعي حول تقدم مشروعك كل اثنين.'
+                : 'A digest of your project progress every Monday.',
             _weeklySummary,
             (val) => setState(() => _weeklySummary = val),
           ),
           _buildDivider(),
           _buildToggleItem(
-            'Compact View',
-            'Show more items per page in dashboard lists.',
+            isAr ? 'عرض مضغوط' : 'Compact View',
+            isAr
+                ? 'إظهار المزيد من العناصر في لوحة القيادة.'
+                : 'Show more items per page in dashboard lists.',
             _compactView,
             (val) => setState(() => _compactView = val),
           ),
           _buildDivider(),
           _buildToggleItem(
-            'Public Activity Feed',
-            'Allow team members to see your task history.',
+            isAr ? 'النشاط العام' : 'Public Activity Feed',
+            isAr
+                ? 'السماح لأعضاء الفريق برؤية سجل مهامك.'
+                : 'Allow team members to see your task history.',
             _publicActivity,
             (val) => setState(() => _publicActivity = val),
           ),

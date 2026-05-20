@@ -103,6 +103,7 @@ class Profile {
   final String? bio;
   final int points;
   final List<String> skills;
+  final bool allowDirectAdd;
 
   Profile({
     required this.id,
@@ -111,6 +112,7 @@ class Profile {
     this.bio,
     this.points = 0,
     this.skills = const [],
+    this.allowDirectAdd = true,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
@@ -137,6 +139,11 @@ class Profile {
       }
     }
 
+    bool allowAdd = true;
+    if (json.containsKey('allow_direct_add') && json['allow_direct_add'] != null) {
+      allowAdd = json['allow_direct_add'] == 1 || json['allow_direct_add'] == true || json['allow_direct_add'] == '1';
+    }
+
     return Profile(
       id: json['id'] ?? 0,
       userId: json['user_id'] ?? 0,
@@ -144,6 +151,7 @@ class Profile {
       bio: json['bio'],
       points: json['points'] ?? 0,
       skills: skillsList,
+      allowDirectAdd: allowAdd,
     );
   }
 
@@ -153,5 +161,6 @@ class Profile {
     if (profileImage != null) 'profile_image': profileImage,
     if (bio != null) 'bio': bio,
     'skills': skills,
+    'allow_direct_add': allowDirectAdd,
   };
 }

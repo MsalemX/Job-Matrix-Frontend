@@ -4,6 +4,7 @@ import '../../../models/user_model.dart';
 import '../../../services/api_service.dart';
 import '../../Profile/profile_screen.dart';
 import '../../Profile/edit_profile_screen.dart';
+import '../../widgets/notifications_dialog.dart';
 
 class Header extends StatefulWidget {
   final String title;
@@ -27,11 +28,13 @@ class Header extends StatefulWidget {
 
 class _HeaderState extends State<Header> {
   User? _user;
+  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _loadNotifications();
   }
 
   Future<void> _loadUser() async {
@@ -39,6 +42,24 @@ class _HeaderState extends State<Header> {
     if (mounted) {
       setState(() => _user = user);
     }
+  }
+
+  Future<void> _loadNotifications() async {
+    final notifications = await ApiService.getNotifications();
+    final unread = notifications.where((n) => !n.isRead).length;
+    if (mounted) {
+      setState(() => _unreadNotificationsCount = unread);
+    }
+  }
+
+  void _openNotifications() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => const NotificationsDialog(),
+    ).then((_) {
+      _loadNotifications();
+    });
   }
 
   @override
@@ -137,6 +158,52 @@ class _HeaderState extends State<Header> {
                 ),
               ),
             ),
+          const SizedBox(width: 16),
+          // Notifications Button
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _unreadNotificationsCount > 0
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  color: _unreadNotificationsCount > 0
+                      ? const Color(0xFF23393E)
+                      : Colors.black54,
+                  size: 22,
+                ),
+                onPressed: _openNotifications,
+                tooltip: 'Notifications',
+                splashRadius: 20,
+              ),
+              if (_unreadNotificationsCount > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_unreadNotificationsCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(width: 24),
           // User Profile (dynamic)
           MouseRegion(

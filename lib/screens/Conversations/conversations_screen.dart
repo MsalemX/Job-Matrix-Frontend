@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../models/chat_model.dart';
+import '../../models/user_model.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
+import '../Invite/invite_handler_screen.dart';
 
 class ConversationsScreen extends StatefulWidget {
   final int? initialUserId; // If set, auto-open conversation with this user
@@ -43,31 +45,38 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     // Auto-open conversation if initialUserId is provided
     final initId = widget.initialUserId;
     if (initId != null) {
-      final match = _conversations
-          .where((c) => c.otherUser?.id == initId)
-          .toList();
-      if (match.isNotEmpty) {
-        await _selectConversation(match.first);
-      } else {
-        // Conversation doesn't exist yet — create it by calling the endpoint
-        final msgs = await ApiService.getMessages(initId);
-        // Reload conversations to get the newly created one
-        final refreshed = await ApiService.getConversations();
-        if (!mounted) return;
-        setState(() {
-          _conversations = refreshed;
-          final newMatch = _conversations
-              .where((c) => c.otherUser?.id == initId)
-              .toList();
-          if (newMatch.isNotEmpty) {
-            _selected = newMatch.first.copyWith(unreadCount: 0);
-            // Update the item in the list too
-            final idx = _conversations.indexOf(newMatch.first);
-            _conversations[idx] = _selected!;
-            _messages = msgs;
-          }
-        });
-      }
+      await _openConversationWithUser(initId);
+    }
+  }
+
+  Future<void> _openConversationWithUser(int targetUserId) async {
+    final match = _conversations
+        .where((c) => c.otherUser?.id == targetUserId)
+        .toList();
+    if (match.isNotEmpty) {
+      await _selectConversation(match.first);
+    } else {
+      setState(() => _loadingMessages = true);
+      // Conversation doesn't exist yet — create it by calling the endpoint
+      final msgs = await ApiService.getMessages(targetUserId);
+      // Reload conversations to get the newly created one
+      final refreshed = await ApiService.getConversations();
+      if (!mounted) return;
+      setState(() {
+        _conversations = refreshed;
+        final newMatch = _conversations
+            .where((c) => c.otherUser?.id == targetUserId)
+            .toList();
+        if (newMatch.isNotEmpty) {
+          _selected = newMatch.first.copyWith(unreadCount: 0);
+          // Update the item in the list too
+          final idx = _conversations.indexOf(newMatch.first);
+          _conversations[idx] = _selected!;
+          _messages = msgs;
+        }
+        _loadingMessages = false;
+      });
+      _scrollToBottom();
     }
   }
 
@@ -198,13 +207,98 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Text(
-              'Messages',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF23393E),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Messages',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF23393E),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Autocomplete<User>(
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<User>.empty();
+                    }
+                    return await ApiService.searchUsers(textEditingValue.text);
+                  },
+                  displayStringForOption: (User option) => option.name,
+                  onSelected: (User selection) {
+                    _openConversationWithUser(selection.id);
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Search user...',
+                        hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                        prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF23393E), width: 1.5),
+                        ),
+                      ),
+                      onSubmitted: (_) => onFieldSubmitted(),
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 260,
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final User option = options.elementAt(index);
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  radius: 16,
+                                  backgroundImage: option.profile?.profileImage != null
+                                      ? NetworkImage(option.profile!.profileImage!)
+                                      : null,
+                                  backgroundColor: const Color(0xFF23393E),
+                                  child: option.profile?.profileImage == null
+                                      ? Text(
+                                          option.username.substring(0, 1).toUpperCase(),
+                                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(option.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                subtitle: Text('@${option.username}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                onTap: () => onSelected(option),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
           const Divider(height: 1),
@@ -431,6 +525,40 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         ? '${msg.createdAt!.hour.toString().padLeft(2, '0')}:${msg.createdAt!.minute.toString().padLeft(2, '0')}'
         : '';
 
+    // Check if the message is a project invite link
+    final isInviteText = msg.content.startsWith('PROJECT_INVITE::');
+    final isRawInviteLink = !isInviteText && (msg.content.contains('/#/invite/') || msg.content.contains('/invite/'));
+    
+    String projectName = 'Project Invite';
+    String inviteLink = '';
+    String inviteCode = '';
+    
+    if (isInviteText) {
+      final parts = msg.content.split('::');
+      if (parts.length >= 3) {
+        projectName = parts[1];
+        inviteLink = parts[2];
+      }
+    } else if (isRawInviteLink) {
+      inviteLink = msg.content.trim();
+    }
+
+    if (inviteLink.isNotEmpty) {
+      try {
+        final uri = Uri.parse(inviteLink);
+        if (uri.fragment.isNotEmpty) {
+          final fragmentUri = Uri.parse(uri.fragment);
+          inviteCode = fragmentUri.pathSegments.last;
+        } else {
+          inviteCode = uri.pathSegments.last;
+        }
+      } catch (e) {
+        inviteCode = inviteLink.split('/').last;
+      }
+    }
+
+    final isInvite = isInviteText || isRawInviteLink;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -472,14 +600,80 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     bottomRight: Radius.circular(isMe ? 4 : 16),
                   ),
                 ),
-                child: Text(
-                  msg.content,
-                  style: TextStyle(
-                    color: isMe ? Colors.white : Colors.black87,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
+                child: isInvite
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              projectName,
+                              style: TextStyle(
+                                color: isMe ? Colors.white : const Color(0xFF23393E),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            inviteLink,
+                            style: TextStyle(
+                              color: isMe ? Colors.white70 : Colors.black54,
+                              fontSize: 12,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              if (inviteCode.isNotEmpty) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => InviteHandlerScreen(inviteCode: inviteCode),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: Icon(
+                              Icons.remove_red_eye_outlined,
+                              size: 16,
+                              color: isMe ? const Color(0xFF23393E) : Colors.white,
+                            ),
+                            label: Text(
+                              'معاينة المشروع',
+                              style: TextStyle(
+                                color: isMe ? const Color(0xFF23393E) : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isMe ? Colors.white : const Color(0xFF23393E),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        msg.content,
+                        style: TextStyle(
+                          color: isMe ? Colors.white : Colors.black87,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                      ),
               ),
               if (time.isNotEmpty) ...[
                 const SizedBox(height: 4),

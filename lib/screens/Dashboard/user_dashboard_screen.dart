@@ -517,7 +517,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                             errorMsg = null;
                           });
 
-                          // First preview to get the project ID
+                          // Preview project by invite link to verify validity
                           final project =
                               await ApiService.getProjectByInviteLink(code);
 
@@ -529,19 +529,18 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                             return;
                           }
 
-                          // Join the project
-                          await ApiService.joinProjectWithInviteLink(code);
-
                           setState(() => isJoining = false);
 
                           if (context.mounted) {
                             Navigator.pop(context); // close dialog
-                            // Navigate directly to project details
+                            // Navigate directly to project details with the invite code
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ProjectDetailScreen(
-                                    projectId: project.id),
+                                  projectId: project.id,
+                                  inviteCode: code,
+                                ),
                               ),
                             );
                           }
@@ -553,8 +552,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
-                      : const Icon(Icons.login, size: 18),
-                  label: Text(isJoining ? 'Joining...' : 'Join Project'),
+                      : const Icon(Icons.arrow_forward, size: 18),
+                  label: Text(isJoining ? 'Loading...' : 'View Project'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF23393E),
                     foregroundColor: Colors.white,

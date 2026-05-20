@@ -145,4 +145,29 @@ class AuthProvider with ChangeNotifier {
     _user = user;
     notifyListeners();
   }
+
+  // Update allow_direct_add locally
+  void updateLocalAllowDirectAdd(bool val) {
+    if (_user?.profile != null) {
+      _user = User(
+        id: _user!.id,
+        name: _user!.name,
+        email: _user!.email,
+        username: _user!.username,
+        role: _user!.role,
+        rawProjectParticipants: _user!.rawProjectParticipants,
+        assignedTasks: _user!.assignedTasks,
+        profile: Profile(
+          id: _user!.profile!.id,
+          userId: _user!.profile!.userId,
+          bio: _user!.profile!.bio,
+          profileImage: _user!.profile!.profileImage,
+          points: _user!.profile!.points,
+          skills: _user!.profile!.skills,
+          allowDirectAdd: val,
+        ),
+      );
+      notifyListeners();
+    }
+  }
 }
