@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 import 'widgets/task_list_item.dart';
@@ -49,6 +51,10 @@ class _TasksScreenState extends State<TasksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final isAr = languageProvider.isArabic;
+    String tr(String en, String ar) => isAr ? ar : en;
+
     int inProgressCount = 0;
     int completedCount = 0;
     List<TaskModel> filteredTasks = [];
@@ -91,9 +97,9 @@ class _TasksScreenState extends State<TasksScreen> {
                         ),
                         child: Row(
                           children: [
-                            _buildTab('In Progress', inProgressCount, 0),
+                            _buildTab(tr('In Progress', 'قيد التنفيذ'), inProgressCount, 0),
                             const SizedBox(width: 32),
-                            _buildTab('Completed', completedCount, 1),
+                            _buildTab(tr('Completed', 'مكتملة'), completedCount, 1),
                           ],
                         ),
                       ),
@@ -116,23 +122,23 @@ class _TasksScreenState extends State<TasksScreen> {
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.grey.shade300),
                               ),
-                              child: const Row(
+                              child: Row(
                                 children: [
                                   Text(
-                                    'Sort by: ',
-                                    style: TextStyle(
+                                    tr('Sort by: ', 'ترتيب حسب: '),
+                                    style: const TextStyle(
                                       color: Colors.black54,
                                       fontSize: 13,
                                     ),
                                   ),
                                   Text(
-                                    'Due Date',
-                                    style: TextStyle(
+                                    tr('Due Date', 'تاريخ الاستحقاق'),
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
                                     ),
                                   ),
-                                  Icon(Icons.arrow_drop_down, size: 18),
+                                  const Icon(Icons.arrow_drop_down, size: 18),
                                 ],
                               ),
                             ),
@@ -143,9 +149,9 @@ class _TasksScreenState extends State<TasksScreen> {
                               size: 18,
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Filters Applied: All Projects',
-                              style: TextStyle(
+                            Text(
+                              tr('Filters Applied: All Projects', 'الفلاتر المطبقة: جميع المشاريع'),
+                              style: const TextStyle(
                                 color: Colors.black45,
                                 fontSize: 13,
                               ),
@@ -192,6 +198,10 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _buildEmptyState() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final isAr = languageProvider.isArabic;
+    String tr(String en, String ar) => isAr ? ar : en;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -203,7 +213,9 @@ class _TasksScreenState extends State<TasksScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            _activeTab == 0 ? 'No tasks in progress' : 'No completed tasks',
+            _activeTab == 0
+                ? tr('No tasks in progress', 'لا توجد مهام قيد التنفيذ')
+                : tr('No completed tasks', 'لا توجد مهام مكتملة'),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -211,9 +223,10 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Tasks will appear here when they are assigned to projects.',
-            style: TextStyle(color: Colors.black38),
+          Text(
+            tr('Tasks will appear here when they are assigned to projects.',
+               'ستظهر المهام هنا عند إسنادها إلى المشاريع.'),
+            style: const TextStyle(color: Colors.black38),
           ),
         ],
       ),

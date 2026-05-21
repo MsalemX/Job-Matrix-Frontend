@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:job_matrix_forntend/services/api_service.dart';
+import 'package:job_matrix_forntend/providers/language_provider.dart';
 import '../../Calendar/calendar_screen.dart';
 import '../../Projects/projects_screen.dart';
 import '../../Projects/joined_projects_screen.dart';
@@ -84,12 +86,16 @@ class Sidebar extends StatelessWidget {
     }
   }
 
-  String _getTodayFormatted() {
-    return DateFormat('EEE, MMM dd').format(DateTime.now());
+  String _getTodayFormatted(bool isArabic) {
+    return DateFormat('EEE, MMM dd', isArabic ? 'ar' : 'en').format(DateTime.now());
   }
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final isAr = languageProvider.isArabic;
+    String tr(String en, String ar) => isAr ? ar : en;
+
     return Container(
       width: 240,
       color: const Color(0xFF23393E),
@@ -101,11 +107,6 @@ class Sidebar extends StatelessWidget {
               child: Column(
                 children: [
                   // Logo Section
-                  //
-                  //
-                  //
-                  //
-                  //
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
@@ -126,10 +127,10 @@ class Sidebar extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Job Matrix',
                               style: TextStyle(
                                 color: Colors.white,
@@ -138,8 +139,8 @@ class Sidebar extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'ENTERPRISE SUITE',
-                              style: TextStyle(
+                              tr('ENTERPRISE SUITE', 'مجموعة أعمال المؤسسة'),
+                              style: const TextStyle(
                                 color: Colors.white60,
                                 fontSize: 10,
                               ),
@@ -154,33 +155,33 @@ class Sidebar extends StatelessWidget {
                   _buildNavItem(
                     context,
                     Icons.dashboard_outlined,
-                    'Dashboard',
+                    tr('Dashboard', 'لوحة التحكم'),
                     route: 'dashboard',
                   ),
                   _buildNavItem(
                     context,
                     Icons.folder_open_outlined,
-                    'Projects',
+                    tr('Projects', 'مشاريعي'),
                     route: 'projects',
                   ),
                   _buildNavItem(
                     context,
                     Icons.group_work_outlined,
-                    'Joined Projects',
+                    tr('Joined Projects', 'المشاريع المنضمة'),
                     route: 'joined_projects',
                   ),
                   _buildNavItem(
                     context,
                     Icons.assignment_outlined,
-                    'Tasks',
+                    tr('Tasks', 'المهام'),
                     route: 'tasks',
                   ),
                   _buildNavItem(
                     context,
                     Icons.calendar_month_outlined,
-                    'Calendar',
+                    tr('Calendar', 'التقويم'),
                     route: 'calendar',
-                    subtitle: _getTodayFormatted(),
+                    subtitle: _getTodayFormatted(isAr),
                   ),
                   FutureBuilder<int>(
                     future: manualUnreadCount != null
@@ -191,7 +192,7 @@ class Sidebar extends StatelessWidget {
                       return _buildNavItem(
                         context,
                         Icons.chat_bubble_outline,
-                        'Conversations',
+                        tr('Conversations', 'المحادثات'),
                         route: 'conversations',
                         badgeCount: count > 0 ? count : null,
                       );
@@ -214,7 +215,7 @@ class Sidebar extends StatelessWidget {
                             _buildNavItem(
                               context,
                               Icons.admin_panel_settings_outlined,
-                              'Admin Reports',
+                              tr('Admin Reports', 'بلاغات الإدارة'),
                               route: 'admin_reports',
                             ),
                           ],
@@ -224,25 +225,25 @@ class Sidebar extends StatelessWidget {
                     },
                   ),
 
-                  const SizedBox(height: 40), // Replaced Spacer with fixed gap
+                  const SizedBox(height: 40),
                   // Bottom Items
                   _buildNavItem(
                     context,
                     Icons.settings_outlined,
-                    'Settings',
+                    tr('Settings', 'الإعدادات'),
                     route: 'settings',
                   ),
                   _buildNavItem(
                     context,
                     Icons.help_outline,
-                    'Help Center',
+                    tr('Help Center', 'مركز المساعدة'),
                     route: 'help',
                     isFullWidth: true,
                   ),
                   _buildNavItem(
                     context,
                     Icons.logout,
-                    'Logout',
+                    tr('Logout', 'تسجيل الخروج'),
                     onTap: () => _logout(context),
                     isFullWidth: true,
                   ),

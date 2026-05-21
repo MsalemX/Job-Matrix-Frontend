@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/language_provider.dart';
 
 class DashboardCard extends StatelessWidget {
   final String title;
@@ -28,6 +30,8 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Container(
       width: width,
       height: height,
@@ -106,9 +110,9 @@ class DashboardCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Progress',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                Text(
+                  languageProvider.translate('progress_label'),
+                  style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
                 Text(
                   '${(progress * 100).toInt()}%',
@@ -143,7 +147,7 @@ class DashboardCard extends StatelessWidget {
                     itemCount: images!.length > 4 ? 4 : images!.length,
                     itemBuilder: (context, index) {
                       return Container(
-                        margin: const EdgeInsets.only(right: 4),
+                        margin: const EdgeInsetsDirectional.only(end: 4),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 1.5),
@@ -163,7 +167,7 @@ class DashboardCard extends StatelessWidget {
                   children: List.generate(
                     2,
                     (index) => Container(
-                      margin: const EdgeInsets.only(right: 4),
+                      margin: const EdgeInsetsDirectional.only(end: 4),
                       child: const CircleAvatar(
                         radius: 12,
                         backgroundColor: Colors.white,

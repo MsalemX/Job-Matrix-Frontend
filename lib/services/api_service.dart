@@ -323,6 +323,23 @@ class ApiService {
     }
   }
 
+  static Future<bool> updatePublicActivity(bool publicActivity) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/profile'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'public_activity': publicActivity}),
+      );
+      if (response.statusCode != 200) {
+        print('Error updating public_activity: ${response.statusCode} - ${response.body}');
+      }
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error updating public_activity: $e');
+      return false;
+    }
+  }
+
   static Future<User?> getUserProfile(int userId) async {
     try {
       final response = await http.get(
@@ -1084,10 +1101,10 @@ class ApiService {
 
   // --- Messaging ---
 
-  static Future<List<ConversationModel>> getConversations() async {
+  static Future<List<ConversationModel>> getConversations({bool archived = false}) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/conversations'),
+        Uri.parse('$baseUrl/conversations?archived=$archived'),
         headers: await _getHeaders(),
       );
       print('getConversations status: ${response.statusCode}');
@@ -1100,6 +1117,33 @@ class ApiService {
       print('Error getting conversations: $e');
     }
     return [];
+  }
+
+  static Future<bool> archiveConversation(int conversationId, bool archive) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/conversations/$conversationId/archive'),
+        headers: await _getHeaders(),
+        body: jsonEncode({'archive': archive}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error archiving conversation: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> deleteConversation(int conversationId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/conversations/$conversationId'),
+        headers: await _getHeaders(),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error deleting conversation: $e');
+      return false;
+    }
   }
 
   static Future<int> getUnreadConversationsCount() async {
@@ -1154,13 +1198,17 @@ class ApiService {
 
   static Future<MessageModel?> sendMessage(
     int conversationId,
-    String content,
-  ) async {
+    String content, {
+    int? replyToId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/conversations/$conversationId/messages'),
         headers: await _getHeaders(),
-        body: jsonEncode({'content': content}),
+        body: jsonEncode({
+          'content': content,
+          if (replyToId != null) 'reply_to_id': replyToId,
+        }),
       );
       if (response.statusCode == 201 || response.statusCode == 200) {
         return MessageModel.fromJson(jsonDecode(response.body));
@@ -1169,6 +1217,23 @@ class ApiService {
       print('Error sending message: $e');
     }
     return null;
+  }
+
+  static Future<bool> deleteMessages(List<int> messageIds, {required String deleteType}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/messages/delete-bulk'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'message_ids': messageIds,
+          'delete_type': deleteType,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error deleting messages: $e');
+      return false;
+    }
   }
 
   static Future<List<ActivityModel>> getMyActivities() async {

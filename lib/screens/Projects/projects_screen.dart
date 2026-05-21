@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 import '../../services/api_service.dart';
@@ -174,6 +176,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Row(
@@ -184,8 +188,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               children: [
                 Header(
                   title: widget.filterVisibility == 'public'
-                      ? 'Public Projects'
-                      : 'Projects',
+                      ? languageProvider.translate('explore_public_projects')
+                      : languageProvider.translate('projects'),
                   showCreateButton:
                       false, // User requested to remove it from here
                   onProjectCreated: _loadProjects,
@@ -219,15 +223,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildSubHeader() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Here are your projects',
-              style: TextStyle(
+            Text(
+              languageProvider.translate('here_are_projects'),
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -247,7 +252,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       );
                     },
                     icon: const Icon(Icons.explore_outlined, size: 16),
-                    label: const Text('Explore Public'),
+                    label: Text(languageProvider.translate('explore_public')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade700,
                       foregroundColor: Colors.white,
@@ -262,7 +267,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.filter_list, size: 16),
-                  label: const Text('Filter'),
+                  label: Text(languageProvider.translate('filter')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: BorderSide(color: Colors.grey.shade300),
@@ -275,7 +280,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.sort, size: 16),
-                  label: const Text('Sort'),
+                  label: Text(languageProvider.translate('sort')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: BorderSide(color: Colors.grey.shade300),
@@ -293,6 +298,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildProjectsGrid() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final projects = _getFilteredProjects();
 
     if (projects.isEmpty && !_isLoading) {
@@ -303,18 +309,18 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             children: [
               Icon(Icons.folder_open, size: 64, color: Colors.grey.shade300),
               const SizedBox(height: 16),
-              const Text(
-                'No projects yet',
-                style: TextStyle(
+              Text(
+                languageProvider.translate('no_projects_yet'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.black54,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Create your first project to get started!',
-                style: TextStyle(color: Colors.black38),
+              Text(
+                languageProvider.translate('create_first_project_started'),
+                style: const TextStyle(color: Colors.black38),
               ),
             ],
           ),
@@ -328,6 +334,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildProjectRow(ProjectModel project) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final sections = _projectSections[project.id] ?? [];
 
     return GestureDetector(
@@ -369,7 +376,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     const SizedBox(height: 8),
                     Expanded(
                       child: Text(
-                        project.description,
+                        project.description.isNotEmpty
+                            ? project.description
+                            : languageProvider.translate('no_description'),
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black54,
@@ -380,14 +389,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Created at: 1/22/2026',
-                      style: TextStyle(fontSize: 12, color: Colors.black45),
+                    Text(
+                      '${languageProvider.translate('created_at_label')} 1/22/2026',
+                      style: const TextStyle(fontSize: 12, color: Colors.black45),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Skills:',
-                      style: TextStyle(
+                    Text(
+                      languageProvider.translate('skills_required'),
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF23393E),
@@ -425,9 +434,9 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           .toList(),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Team Members:',
-                      style: TextStyle(
+                    Text(
+                      languageProvider.translate('team_members'),
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF23393E),
@@ -514,6 +523,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   }
 
   Widget _buildSectionCard(SectionModel section) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       width: 240,
       height: 240,
@@ -550,9 +560,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Managing core components and delivery timelines...',
-            style: TextStyle(fontSize: 12, color: Colors.black45, height: 1.4),
+          Text(
+            languageProvider.isArabic
+                ? 'إدارة المكونات الأساسية وجداول التسليم للقسم...'
+                : 'Managing core components and delivery timelines...',
+            style: const TextStyle(fontSize: 12, color: Colors.black45, height: 1.4),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -560,9 +572,18 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSectionStat('TEAM', '${section.tasks.length}'),
-              _buildSectionStat('TASKS', '${section.tasks.length}/24'),
-              _buildSectionStat('DEADLINE', 'Today'),
+              _buildSectionStat(
+                languageProvider.translate('team_count_stat'),
+                '${section.tasks.length}',
+              ),
+              _buildSectionStat(
+                languageProvider.translate('tasks_count_stat'),
+                '${section.tasks.length}/24',
+              ),
+              _buildSectionStat(
+                languageProvider.translate('deadline_stat'),
+                languageProvider.translate('today'),
+              ),
             ],
           ),
         ],

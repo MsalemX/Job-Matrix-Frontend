@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../models/user_model.dart';
 import '../Dashboard/widgets/sidebar.dart';
@@ -78,6 +80,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     setState(() => _isLoading = true);
 
     final Map<String, dynamic> data = {
@@ -98,14 +101,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (result != null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
+          SnackBar(content: Text(languageProvider.translate('profile_updated_success'))),
         );
         Navigator.pop(context, true);
       }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update profile.')),
+          SnackBar(content: Text(languageProvider.translate('failed_update_profile'))),
         );
       }
     }
@@ -113,6 +116,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: Row(
@@ -122,7 +127,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               children: [
                 Header(
-                  title: 'Edit Profile',
+                  title: languageProvider.translate('edit_profile_title'),
                   showCreateButton: false,
                   showEditProfileButton: false,
                 ),
@@ -167,6 +172,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     return Container(
       width: double.infinity,
       height: 200,
@@ -229,9 +235,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Change Profile Photo',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            Text(
+              languageProvider.translate('change_profile_photo'),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ],
         ),
@@ -240,6 +246,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildGeneralInfoCard() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -250,25 +257,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'General Information',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            languageProvider.translate('general_info'),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
           _buildTextField(
-            label: 'Full Name',
+            label: languageProvider.translate('full_name'),
             controller: _nameController,
             icon: Icons.person_outline,
           ),
           const SizedBox(height: 20),
           _buildTextField(
-            label: 'Username',
+            label: languageProvider.translate('username_label'),
             controller: _usernameController,
             icon: Icons.alternate_email,
           ),
           const SizedBox(height: 20),
           _buildTextField(
-            label: 'Biography',
+            label: languageProvider.translate('biography'),
             controller: _bioController,
             icon: Icons.description_outlined,
             maxLines: 4,
@@ -284,6 +291,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required IconData icon,
     int maxLines = 1,
   }) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -318,7 +326,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return 'Please enter $label';
+              return '${languageProvider.translate('please_enter')}$label';
             }
             return null;
           },
@@ -329,6 +337,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildSkillsCard() {
     final TextEditingController skillController = TextEditingController();
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
 
     return Container(
       padding: const EdgeInsets.all(32),
@@ -340,9 +349,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Skills',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            languageProvider.translate('skills_label'),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
           Row(
@@ -351,7 +360,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: TextField(
                   controller: skillController,
                   decoration: InputDecoration(
-                    hintText: 'Add a skill...',
+                    hintText: languageProvider.translate('add_skill_placeholder'),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                     border: OutlineInputBorder(
@@ -413,6 +422,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildActionCard() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -428,15 +438,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             color: Color(0xFF23393E),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Save Profile',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            languageProvider.translate('save_profile'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Make sure all your information is correct before saving.',
+          Text(
+            languageProvider.translate('save_profile_warning'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+            style: const TextStyle(color: Colors.black54, fontSize: 13),
           ),
           const SizedBox(height: 32),
           SizedBox(
@@ -461,16 +471,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
-                      'Save Changes',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                  : Text(
+                      languageProvider.translate('save_changes'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
             ),
           ),
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              languageProvider.translate('cancel'),
+              style: const TextStyle(color: Colors.grey),
+            ),
           ),
         ],
       ),

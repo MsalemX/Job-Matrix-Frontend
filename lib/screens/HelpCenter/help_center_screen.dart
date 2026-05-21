@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 
@@ -7,6 +9,8 @@ class HelpCenterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       backgroundColor: const Color(
         0xFFC0C7C4,
@@ -17,19 +21,22 @@ class HelpCenterScreen extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                const Header(title: 'Help Center', showCreateButton: false),
+                Header(
+                  title: languageProvider.translate('help_center'),
+                  showCreateButton: false,
+                ),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(40),
                     child: Column(
                       children: [
-                        _buildHeroSection(),
+                        _buildHeroSection(context),
                         const SizedBox(height: 60),
-                        _buildCategorySection(),
+                        _buildCategorySection(context),
                         const SizedBox(height: 60),
-                        _buildPopularResources(),
+                        _buildPopularResources(context),
                         const SizedBox(height: 60),
-                        _buildLiveChatCard(),
+                        _buildLiveChatCard(context),
                       ],
                     ),
                   ),
@@ -42,12 +49,13 @@ class HelpCenterScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroSection() {
+  Widget _buildHeroSection(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Column(
       children: [
-        const Text(
-          'How can we help?',
-          style: TextStyle(
+        Text(
+          languageProvider.translate('how_can_help'),
+          style: const TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.bold,
             color: Color(0xFF23393E),
@@ -67,13 +75,13 @@ class HelpCenterScreen extends StatelessWidget {
               ),
             ],
           ),
-          child: const TextField(
+          child: TextField(
             decoration: InputDecoration(
-              hintText: 'Search for articles, guides, or keywords...',
-              hintStyle: TextStyle(color: Colors.grey),
-              prefixIcon: Icon(Icons.search, color: Colors.grey),
+              hintText: languageProvider.translate('search_help_placeholder'),
+              hintStyle: const TextStyle(color: Colors.grey),
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
+              contentPadding: const EdgeInsets.symmetric(
                 horizontal: 24,
                 vertical: 20,
               ),
@@ -84,12 +92,13 @@ class HelpCenterScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategorySection() {
+  Widget _buildCategorySection(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Column(
       children: [
-        const Text(
-          'BROWSE BY CATEGORY',
-          style: TextStyle(
+        Text(
+          languageProvider.translate('browse_by_category'),
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
@@ -102,26 +111,23 @@ class HelpCenterScreen extends StatelessWidget {
           children: [
             _buildCategoryCard(
               icon: Icons.rocket_launch,
-              title: 'Getting\nStarted',
-              subtitle:
-                  'New to Nexus? Learn the basics and set up your first workspace in minutes.',
-              actionLabel: 'EXPLORE GUIDE',
+              title: languageProvider.translate('getting_started'),
+              subtitle: languageProvider.translate('getting_started_sub'),
+              actionLabel: languageProvider.translate('explore_guide'),
             ),
             const SizedBox(width: 24),
             _buildCategoryCard(
               icon: Icons.account_tree_outlined,
-              title: 'Project\nManagement',
-              subtitle:
-                  'Master task tracking, milestones, and advanced team collaboration tools.',
-              actionLabel: 'VIEW ARTICLES',
+              title: languageProvider.translate('project_management'),
+              subtitle: languageProvider.translate('project_management_sub'),
+              actionLabel: languageProvider.translate('view_articles'),
             ),
             const SizedBox(width: 24),
             _buildCategoryCard(
               icon: Icons.build_outlined,
-              title: 'Troubleshooting',
-              subtitle:
-                  'Encountering an issue? Find solutions for common technical questions and bugs.',
-              actionLabel: 'GET SUPPORT',
+              title: languageProvider.translate('troubleshooting'),
+              subtitle: languageProvider.translate('troubleshooting_sub'),
+              actionLabel: languageProvider.translate('get_support'),
             ),
           ],
         ),
@@ -198,7 +204,8 @@ class HelpCenterScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPopularResources() {
+  Widget _buildPopularResources(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       constraints: const BoxConstraints(maxWidth: 800),
       padding: const EdgeInsets.all(32),
@@ -211,9 +218,9 @@ class HelpCenterScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Popular Resources',
-                style: TextStyle(
+              Text(
+                languageProvider.translate('popular_resources'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF23393E),
@@ -221,9 +228,9 @@ class HelpCenterScreen extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () {},
-                child: const Text(
-                  'View all documentation',
-                  style: TextStyle(
+                child: Text(
+                  languageProvider.translate('view_all_docs'),
+                  style: const TextStyle(
                     color: Color(0xFF23393E),
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -240,12 +247,12 @@ class HelpCenterScreen extends StatelessWidget {
                   children: [
                     _buildResourceTile(
                       Icons.description_outlined,
-                      'Setting up automated\nworkflows',
+                      languageProvider.translate('resource_workflows'),
                     ),
                     const SizedBox(height: 16),
                     _buildResourceTile(
                       Icons.storage_outlined,
-                      'Exporting project reports\n(PDF/CSV)',
+                      languageProvider.translate('resource_reports'),
                     ),
                   ],
                 ),
@@ -256,12 +263,12 @@ class HelpCenterScreen extends StatelessWidget {
                   children: [
                     _buildResourceTile(
                       Icons.group_add_outlined,
-                      'Inviting external\ncollaborators',
+                      languageProvider.translate('resource_invite'),
                     ),
                     const SizedBox(height: 16),
                     _buildResourceTile(
                       Icons.lock_outline,
-                      'Managing team\npermissions',
+                      languageProvider.translate('resource_perms'),
                     ),
                   ],
                 ),
@@ -300,7 +307,8 @@ class HelpCenterScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLiveChatCard() {
+  Widget _buildLiveChatCard(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       width: 450,
       padding: const EdgeInsets.all(40),
@@ -323,9 +331,9 @@ class HelpCenterScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Still need help?',
-            style: TextStyle(
+          Text(
+            languageProvider.translate('still_need_help'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -333,7 +341,7 @@ class HelpCenterScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Our support team is available 24/7 to assist you.',
+            languageProvider.translate('support_available_247'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.white.withAlpha(150)),
           ),
@@ -348,9 +356,9 @@ class HelpCenterScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
-              'Start a Live Chat',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            child: Text(
+              languageProvider.translate('start_live_chat'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],

@@ -165,6 +165,32 @@ class AuthProvider with ChangeNotifier {
           points: _user!.profile!.points,
           skills: _user!.profile!.skills,
           allowDirectAdd: val,
+          publicActivity: _user!.profile!.publicActivity,
+        ),
+      );
+      notifyListeners();
+    }
+  }
+
+  void updateLocalPublicActivity(bool val) {
+    if (_user?.profile != null) {
+      _user = User(
+        id: _user!.id,
+        name: _user!.name,
+        email: _user!.email,
+        username: _user!.username,
+        role: _user!.role,
+        rawProjectParticipants: _user!.rawProjectParticipants,
+        assignedTasks: _user!.assignedTasks,
+        profile: Profile(
+          id: _user!.profile!.id,
+          userId: _user!.profile!.userId,
+          bio: _user!.profile!.bio,
+          profileImage: _user!.profile!.profileImage,
+          points: _user!.profile!.points,
+          skills: _user!.profile!.skills,
+          allowDirectAdd: _user!.profile!.allowDirectAdd,
+          publicActivity: val,
         ),
       );
       notifyListeners();

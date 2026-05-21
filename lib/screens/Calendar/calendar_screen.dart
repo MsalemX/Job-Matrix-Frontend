@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 import '../../services/api_service.dart';
@@ -60,7 +62,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  List<String> _getMonthNames() => [
+  List<String> _getMonthNames(bool isArabic) => isArabic ? [
+    '',
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ] : [
     '',
     'January',
     'February',
@@ -98,7 +114,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final monthName = _getMonthNames()[_focusedDate.month];
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final isAr = languageProvider.isArabic;
+    String tr(String en, String ar) => isAr ? ar : en;
+
+    final monthName = _getMonthNames(isAr)[_focusedDate.month];
     final year = _focusedDate.year;
 
     return Scaffold(
@@ -129,7 +149,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '$monthName $year',
+                                  isAr ? '$monthName $year' : '$monthName $year',
                                   style: const TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
@@ -144,7 +164,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 ),
                               ],
                             ),
-                            _buildTodayButton(),
+                            _buildTodayButton(tr('Today', 'اليوم')),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -152,7 +172,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         Expanded(
                           child: _isLoading
                               ? const Center(child: CircularProgressIndicator())
-                              : _buildCalendarGrid(),
+                              : _buildCalendarGrid(isAr),
                         ),
                       ],
                     ),
@@ -166,7 +186,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildTodayButton() {
+  Widget _buildTodayButton(String label) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -175,11 +195,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       child: TextButton(
         onPressed: _goToToday,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Today',
-            style: TextStyle(
+            label,
+            style: const TextStyle(
               color: Color(0xFF23393E),
               fontWeight: FontWeight.bold,
               fontSize: 13,
@@ -190,8 +210,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildCalendarGrid() {
-    final daysInWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  Widget _buildCalendarGrid(bool isAr) {
+    final daysInWeek = isAr
+        ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+        : ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     final offset = _firstWeekdayOffset(_focusedDate);
     final totalDays = _daysInMonth(_focusedDate);
     final previousMonthDate = DateTime(
@@ -342,7 +364,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     Color bgColor = const Color(0xFF23393E);
     Color textColor = Colors.white;
 
-    if (task.name.contains('Sprint')) {
+    final today = DateTime.now();
+    final isDeadlineToday = task.dueDate != null &&
+        task.dueDate!.year == today.year &&
+        task.dueDate!.month == today.month &&
+        task.dueDate!.day == today.day;
+
+    if (task.status.toLowerCase() == 'completed') {
+      bgColor = const Color(0xFFD1F2D1); // Soft green background
+      textColor = const Color(0xFF1B5E20); // Dark green text
+    } else if (isDeadlineToday) {
+      bgColor = const Color(0xFFFFD1D1); // Soft red background
+      textColor = const Color(0xFFB71C1C); // Dark red text
+    } else if (task.name.contains('Sprint')) {
       bgColor = const Color(0xFFD1E4FF);
       textColor = const Color(0xFF0D47A1);
     } else if (task.name.contains('Kickoff')) {

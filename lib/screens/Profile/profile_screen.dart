@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 import '../../services/api_service.dart';
@@ -44,6 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -57,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               children: [
                 Header(
-                  title: 'Profile',
+                  title: languageProvider.translate('profile_title'),
                   showCreateButton: false,
                   showEditProfileButton: true,
                   onProjectCreated: _loadData,
@@ -91,15 +95,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               child: Column(
                                 children: [
                                   _buildTasksSection(
-                                    'Assigned Tasks',
+                                    languageProvider.translate('assigned_tasks'),
                                     _assignedTasks,
-                                    'Active',
+                                    languageProvider.translate('active'),
                                   ),
                                   const SizedBox(height: 32),
                                   _buildTasksSection(
-                                    'Completed Tasks',
+                                    languageProvider.translate('completed_tasks_profile'),
                                     _completedTasks,
-                                    'Finished',
+                                    languageProvider.translate('finished'),
                                   ),
                                 ],
                               ),
@@ -119,6 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       width: double.infinity,
       height: 280,
@@ -217,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     color: Colors.amber, size: 16),
                                 const SizedBox(width: 6),
                                 Text(
-                                  '${_user?.profile?.points ?? 0} pts',
+                                  '${_user?.profile?.points ?? 0}${languageProvider.translate('points_suffix')}',
                                   style: const TextStyle(
                                       color: Colors.amber,
                                       fontSize: 13,
@@ -257,6 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBioCard() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -266,13 +272,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.assignment_ind_outlined, size: 24),
-              SizedBox(width: 12),
+              const Icon(Icons.assignment_ind_outlined, size: 24),
+              const SizedBox(width: 12),
               Text(
-                'Biography',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                languageProvider.translate('biography'),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -291,6 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSkillsCard() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
@@ -300,13 +307,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.psychology_outlined, size: 24),
-              SizedBox(width: 12),
+              const Icon(Icons.psychology_outlined, size: 24),
+              const SizedBox(width: 12),
               Text(
-                'Skills',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                languageProvider.translate('skills_label'),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -316,9 +323,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             runSpacing: 8,
             children: (_user?.profile?.skills ?? []).isEmpty
                 ? [
-                    const Text(
-                      'No skills added yet',
-                      style: TextStyle(color: Colors.black54, fontSize: 13),
+                    Text(
+                      languageProvider.translate('no_skills_added'),
+                      style: const TextStyle(color: Colors.black54, fontSize: 13),
                     ),
                   ]
                 : (_user?.profile?.skills ?? [])
@@ -364,6 +371,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildTasksSection(String title, List<TaskModel> tasks, String badge) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -410,15 +418,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.assignment_outlined,
                   size: 48,
                   color: Colors.black26,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Text(
-                  'No tasks yet',
-                  style: TextStyle(
+                  languageProvider.translate('no_tasks_yet'),
+                  style: const TextStyle(
                     color: Colors.black54,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
@@ -436,6 +444,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildTaskCard(TaskModel task, bool showProgress) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final localizedStatus = languageProvider.translate(task.status);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(24),
@@ -469,7 +479,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 Text(
-                  'STATUS: ${task.status.toUpperCase().replaceAll('_', ' ')}',
+                  '${languageProvider.translate('status').toUpperCase()}: ${localizedStatus.toUpperCase()}',
                   style: TextStyle(
                     color: Colors.grey.shade700,
                     fontSize: 11,
@@ -483,12 +493,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text(
-                  'STATUS',
-                  style: TextStyle(fontSize: 10, color: Colors.black38),
+                Text(
+                  languageProvider.translate('status').toUpperCase(),
+                  style: const TextStyle(fontSize: 10, color: Colors.black38),
                 ),
                 Text(
-                  task.status.toUpperCase().replaceAll('_', ' '),
+                  localizedStatus,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -500,9 +510,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text(
-                  'PROGRESS',
-                  style: TextStyle(fontSize: 10, color: Colors.black38),
+                Text(
+                  languageProvider.translate('progress_label').toUpperCase(),
+                  style: const TextStyle(fontSize: 10, color: Colors.black38),
                 ),
                 Text(
                   '${task.progress}%',

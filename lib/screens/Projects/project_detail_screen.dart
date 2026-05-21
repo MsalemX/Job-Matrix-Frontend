@@ -508,7 +508,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Widget _buildTaskItem(TaskModel task) {
-    final isCompleted = task.status == 'completed';
+    final isCompleted = task.status.toLowerCase() == 'completed' ||
+        task.status.toLowerCase() == 'done' ||
+        task.attachments.isNotEmpty;
 
     // Find assigned user from project participants
     final assignedUser = task.assignedTo != null
@@ -527,7 +529,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         children: [
           Checkbox(
             value: isCompleted,
-            onChanged: (v) {},
+            onChanged: null, // Disabled to prevent editing / toggling manually
             activeColor: const Color(0xFF23393E),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
@@ -620,7 +622,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ),
             ),
           ],
-          if (!isAssigned && _isMember && !_isAdmin) ...[
+          if (!isAssigned && _isMember && !_isAdmin && !isCompleted) ...[
             const SizedBox(width: 8),
             TextButton.icon(
               onPressed: () => _assignTaskToMe(task),
@@ -636,7 +638,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ),
             ),
           ],
-          if (_isAdmin) ...[
+          if (_isAdmin && !isCompleted) ...[
             const SizedBox(width: 8),
             // Edit button
             IconButton(

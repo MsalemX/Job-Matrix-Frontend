@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../providers/language_provider.dart';
 import '../../Projects/widgets/create_project_dialog.dart';
 import '../../../models/user_model.dart';
 import '../../../services/api_service.dart';
@@ -64,6 +66,49 @@ class _HeaderState extends State<Header> {
 
   @override
   Widget build(BuildContext context) {
+    final langProvider = Provider.of<LanguageProvider>(context);
+    final isAr = langProvider.isArabic;
+    String tr(String en, String ar) => isAr ? ar : en;
+
+    String displayTitle = widget.title;
+    if (widget.title == 'Dashboard') {
+      displayTitle = tr('Dashboard', 'لوحة التحكم');
+    } else if (widget.title == 'Calendar') {
+      displayTitle = tr('Calendar', 'التقويم');
+    } else if (widget.title == 'Conversations') {
+      displayTitle = tr('Conversations', 'المحادثات');
+    } else if (widget.title == 'Help Center') {
+      displayTitle = tr('Help Center', 'مركز المساعدة');
+    } else if (widget.title == 'Profile') {
+      displayTitle = tr('Profile', 'الملف الشخصي');
+    } else if (widget.title == 'Edit Profile') {
+      displayTitle = tr('Edit Profile', 'تعديل الملف الشخصي');
+    } else if (widget.title == 'User Profile') {
+      displayTitle = tr('User Profile', 'ملف المستخدم');
+    } else if (widget.title == 'Joined Projects') {
+      displayTitle = tr('Joined Projects', 'المشاريع المشتركة');
+    } else if (widget.title == 'Projects') {
+      displayTitle = tr('Projects', 'المشاريع');
+    } else if (widget.title == 'Tasks') {
+      displayTitle = tr('Tasks', 'المهام');
+    } else if (widget.title == 'Settings') {
+      displayTitle = tr('Settings', 'الإعدادات');
+    } else if (widget.title == 'System Overview') {
+      displayTitle = tr('System Overview', 'نظرة عامة على النظام');
+    } else if (widget.title == 'Manage Users') {
+      displayTitle = tr('Manage Users', 'إدارة المستخدمين');
+    } else if (widget.title == 'Manage Projects') {
+      displayTitle = tr('Manage Projects', 'إدارة المشاريع');
+    } else if (widget.title == 'System Reports') {
+      displayTitle = tr('System Reports', 'بلاغات النظام');
+    } else if (widget.title == 'Report Details') {
+      displayTitle = tr('Report Details', 'تفاصيل البلاغ');
+    } else if (widget.title == 'Project Details (Admin)') {
+      displayTitle = tr('Project Details (Admin)', 'تفاصيل المشروع (أدمن)');
+    } else if (widget.title == 'Account Settings') {
+      displayTitle = tr('Account Settings', 'إعدادات الحساب');
+    }
+
     return Container(
       height: 70,
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -74,7 +119,7 @@ class _HeaderState extends State<Header> {
       child: Row(
         children: [
           Text(
-            widget.title,
+            displayTitle,
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -93,12 +138,12 @@ class _HeaderState extends State<Header> {
             ),
             child: TextField(
               onSubmitted: widget.onSearch,
-              decoration: const InputDecoration(
-                hintText: 'Search projects or tasks...',
-                hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-                prefixIcon: Icon(Icons.search, size: 18, color: Colors.grey),
+              decoration: InputDecoration(
+                hintText: tr('Search projects or tasks...', 'البحث عن المشاريع أو المهام...'),
+                hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),
@@ -113,7 +158,7 @@ class _HeaderState extends State<Header> {
                 );
               },
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Create Project'),
+              label: Text(tr('Create Project', 'إنشاء مشروع')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF23393E),
                 foregroundColor: Colors.white,
@@ -144,7 +189,7 @@ class _HeaderState extends State<Header> {
                 }
               },
               icon: const Icon(Icons.edit_outlined, size: 18),
-              label: const Text('Edit Profile'),
+              label: Text(tr('Edit Profile', 'تعديل الملف الشخصي')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF23393E),
                 foregroundColor: Colors.white,
@@ -174,7 +219,7 @@ class _HeaderState extends State<Header> {
                   size: 22,
                 ),
                 onPressed: _openNotifications,
-                tooltip: 'Notifications',
+                tooltip: tr('Notifications', 'الإشعارات'),
                 splashRadius: 20,
               ),
               if (_unreadNotificationsCount > 0)
@@ -222,7 +267,7 @@ class _HeaderState extends State<Header> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _user?.name ?? 'Loading...',
+                        _user?.name ?? tr('Loading...', 'جاري التحميل...'),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,

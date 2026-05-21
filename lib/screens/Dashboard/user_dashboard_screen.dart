@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import 'widgets/sidebar.dart';
 import 'widgets/header.dart';
 import 'widgets/dashboard_card.dart';
@@ -60,6 +62,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA), // Subtle light gray background
       body: Row(
@@ -82,7 +86,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Welcome back, ${_user?.name ?? 'User'}',
+                                '${languageProvider.translate('welcome_back')}, ${_user?.name ?? (languageProvider.isArabic ? 'مستخدم' : 'User')}',
                                 style: const TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
@@ -90,7 +94,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                                 ),
                               ),
                               Text(
-                                'You have ${_projects.length} project${_projects.length != 1 ? 's' : ''} and ${_tasks.length} task${_tasks.length != 1 ? 's' : ''}.',
+                                '${languageProvider.translate('welcome_sub_prefix')}${_projects.length} ${languageProvider.translate(_projects.length == 1 ? 'projects_stat' : 'projects_stat_plural')}${languageProvider.translate('and')}${_tasks.length} ${languageProvider.translate(_tasks.length == 1 ? 'tasks_stat' : 'tasks_stat_plural')}.',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.black54,
@@ -100,7 +104,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
 
                               // --- My Projects Section ---
                               _buildSectionHeader(
-                                'My Projects',
+                                languageProvider.translate('my_projects'),
                                 onViewAll: () {
                                   Navigator.push(
                                     context,
@@ -114,7 +118,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                                     OutlinedButton.icon(
                                       onPressed: _showInviteLinkDialog,
                                       icon: const Icon(Icons.link, size: 16),
-                                      label: const Text('Join via Link'),
+                                      label: Text(languageProvider.translate('join_via_link')),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: const Color(0xFF23393E),
                                         side: const BorderSide(color: Color(0xFF23393E)),
@@ -140,7 +144,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                                         Icons.explore_outlined,
                                         size: 16,
                                       ),
-                                      label: const Text('Explore Public Projects'),
+                                      label: Text(languageProvider.translate('explore_public_projects')),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFF23393E),
                                         foregroundColor: Colors.white,
@@ -164,7 +168,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
 
                               // --- My Tasks Section ---
                               _buildSectionHeader(
-                                'My Tasks',
+                                languageProvider.translate('my_tasks'),
                                 onViewAll: () {
                                   Navigator.push(
                                     context,
@@ -189,11 +193,12 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   }
 
   Widget _buildProjectsRow() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     if (_projects.isEmpty) {
       return _buildEmptyState(
         icon: Icons.folder_open_outlined,
-        title: 'No projects yet',
-        subtitle: 'Create your first project to get started!',
+        title: languageProvider.translate('no_projects_yet'),
+        subtitle: languageProvider.translate('create_first_project_started'),
       );
     }
 
@@ -233,10 +238,10 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                     title: project.name,
                     subtitle: project.description.isNotEmpty
                         ? project.description
-                        : 'No description',
+                        : languageProvider.translate('no_description'),
                     status: project.visibility == 'public'
-                        ? 'Public'
-                        : 'Private',
+                        ? languageProvider.translate('public')
+                        : languageProvider.translate('private'),
                     progress: 0.0,
                     icon: icons[iconIndex],
                     images: project.participants
@@ -244,7 +249,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                         .where((img) => img != null && img.isNotEmpty)
                         .cast<String>()
                         .toList(),
-                    timeLeft: '${project.participants.length} members',
+                    timeLeft: '${project.participants.length} ${languageProvider.translate('members')}',
                   ),
                 ),
               ),
@@ -257,11 +262,12 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   }
 
   Widget _buildTasksRow() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     if (_tasks.isEmpty) {
       return _buildEmptyState(
         icon: Icons.assignment_outlined,
-        title: 'No tasks yet',
-        subtitle: 'Tasks will appear here when you join projects.',
+        title: languageProvider.translate('no_tasks_yet'),
+        subtitle: languageProvider.translate('tasks_appear_join_projects'),
         showCreateButton: false,
       );
     }
@@ -273,6 +279,14 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
         children: _tasks.map((task) {
           final isCompleted =
               task.status == 'completed' || task.status == 'done';
+          
+          String statusText = languageProvider.translate('in_progress');
+          if (task.status == 'completed' || task.status == 'done') {
+            statusText = languageProvider.translate('completed');
+          } else if (task.status == 'todo') {
+            statusText = languageProvider.translate('todo');
+          }
+
           return Padding(
             padding: const EdgeInsets.only(right: 24),
             child: DashboardCard(
@@ -281,14 +295,14 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               title: task.name,
               subtitle: task.description.isNotEmpty
                   ? task.description
-                  : 'No description',
-              status: isCompleted ? 'Completed' : 'In Progress',
+                  : languageProvider.translate('no_description'),
+              status: statusText,
               progress: isCompleted ? 1.0 : 0.5,
               showProgress: false,
               icon: isCompleted
                   ? Icons.check_circle
                   : Icons.assignment_outlined,
-              timeLeft: task.status,
+              timeLeft: statusText,
             ),
           );
         }).toList(),
@@ -302,6 +316,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     required String subtitle,
     bool showCreateButton = true,
   }) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 48),
@@ -335,7 +350,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 onProjectCreated: _loadData,
               ),
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Create Project'),
+              label: Text(languageProvider.translate('start_new_project')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF23393E),
                 foregroundColor: Colors.white,
@@ -355,6 +370,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
     VoidCallback? onViewAll,
     Widget? action,
   }) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -378,9 +394,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
             if (action != null) const SizedBox(width: 16),
             TextButton(
               onPressed: onViewAll ?? () {},
-              child: const Text(
-                'View All',
-                style: TextStyle(
+              child: Text(
+                languageProvider.translate('view_all'),
+                style: const TextStyle(
                   color: Colors.black54,
                   fontWeight: FontWeight.w600,
                 ),
@@ -393,6 +409,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
   }
 
   Widget _buildCreateNewCard({double width = 300, double height = 260}) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return GestureDetector(
       onTap: () =>
           CreateProjectDialog.show(context, onProjectCreated: _loadData),
@@ -425,13 +442,13 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
                 child: const Icon(Icons.add, color: Colors.black54, size: 32),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Start New Project',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                languageProvider.translate('start_new_project'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const Text(
-                'Need help? Invite your team',
-                style: TextStyle(color: Colors.black54, fontSize: 12),
+              Text(
+                languageProvider.translate('need_help_invite_team'),
+                style: const TextStyle(color: Colors.black54, fontSize: 12),
               ),
             ],
           ),
@@ -449,31 +466,32 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
       context: context,
       barrierColor: Colors.black.withAlpha(150),
       builder: (context) {
+        final languageProvider = Provider.of<LanguageProvider>(context);
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Row(
-                children: const [
-                  Icon(Icons.link, color: Color(0xFF23393E)),
-                  SizedBox(width: 12),
-                  Text('Join via Invite Link',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                children: [
+                  const Icon(Icons.link, color: Color(0xFF23393E)),
+                  const SizedBox(width: 12),
+                  Text(languageProvider.translate('join_via_invite_title'),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Paste the invite link or code you received:',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  Text(
+                    languageProvider.translate('paste_invite_code'),
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: controller,
                     decoration: InputDecoration(
-                      hintText: 'Paste invite link or code...',
+                      hintText: languageProvider.translate('paste_invite_placeholder'),
                       prefixIcon: const Icon(Icons.content_paste, size: 20),
                       errorText: errorMsg,
                       border: OutlineInputBorder(
@@ -502,58 +520,60 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: Colors.black54)),
+                  child: Text(languageProvider.translate('cancel'),
+                      style: const TextStyle(color: Colors.black54)),
                 ),
                 ElevatedButton.icon(
                   onPressed: isJoining
                       ? null
                       : () async {
-                          final code = controller.text.trim().split('/').last;
-                          if (code.isEmpty) return;
+                           final code = controller.text.trim().split('/').last;
+                           if (code.isEmpty) return;
 
-                          setState(() {
-                            isJoining = true;
-                            errorMsg = null;
-                          });
+                           setState(() {
+                             isJoining = true;
+                             errorMsg = null;
+                           });
 
-                          // Preview project by invite link to verify validity
-                          final project =
-                              await ApiService.getProjectByInviteLink(code);
+                           // Preview project by invite link to verify validity
+                           final project =
+                               await ApiService.getProjectByInviteLink(code);
 
-                          if (project == null) {
-                            setState(() {
-                              isJoining = false;
-                              errorMsg = 'Invalid or expired invite link';
-                            });
-                            return;
-                          }
+                           if (project == null) {
+                             setState(() {
+                               isJoining = false;
+                               errorMsg = languageProvider.translate('invalid_invite_code');
+                             });
+                             return;
+                           }
 
-                          setState(() => isJoining = false);
+                           setState(() => isJoining = false);
 
-                          if (context.mounted) {
-                            Navigator.pop(context); // close dialog
-                            // Navigate directly to project details with the invite code
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ProjectDetailScreen(
-                                  projectId: project.id,
-                                  inviteCode: code,
-                                ),
-                              ),
-                            );
-                          }
-                        },
+                           if (context.mounted) {
+                             Navigator.pop(context); // close dialog
+                             // Navigate directly to project details with the invite code
+                             Navigator.push(
+                               context,
+                               MaterialPageRoute(
+                                 builder: (_) => ProjectDetailScreen(
+                                   projectId: project.id,
+                                   inviteCode: code,
+                                 ),
+                               ),
+                             );
+                           }
+                         },
                   icon: isJoining
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                               strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.arrow_forward, size: 18),
-                  label: Text(isJoining ? 'Loading...' : 'View Project'),
+                  label: Text(isJoining
+                      ? languageProvider.translate('loading_btn')
+                      : languageProvider.translate('view_project')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF23393E),
                     foregroundColor: Colors.white,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:job_matrix_forntend/screens/Splash/splash_screen.dart';
 import 'package:job_matrix_forntend/services/auth_provider.dart';
 import 'package:job_matrix_forntend/providers/language_provider.dart';
@@ -28,6 +29,23 @@ class MyApp extends StatelessWidget {
           title: 'Job Matrix',
           debugShowCheckedModeBanner: false,
           locale: langProvider.locale,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en', ''),
+            Locale('ar', ''),
+          ],
+          builder: (context, child) {
+            return Directionality(
+              textDirection: langProvider.isArabic
+                  ? TextDirection.rtl
+                  : TextDirection.ltr,
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2D464C)),
             useMaterial3: true,

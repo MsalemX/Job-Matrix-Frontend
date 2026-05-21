@@ -10,6 +10,7 @@ class ConversationModel {
   final DateTime? lastMessageAt;
   final int? lastSenderId; // Added to track last sender locally/from API
   final int unreadCount;
+  final bool isArchived;
 
   ConversationModel({
     required this.id,
@@ -21,6 +22,7 @@ class ConversationModel {
     this.lastMessageAt,
     this.lastSenderId,
     this.unreadCount = 0,
+    this.isArchived = false,
   });
 
   factory ConversationModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class ConversationModel {
           : null,
       lastSenderId: json['last_sender_id'] ?? (json['last_message_obj']?['sender_id']), 
       unreadCount: json['unread_count'] ?? 0,
+      isArchived: json['is_archived'] ?? false,
     );
   }
 
@@ -48,6 +51,7 @@ class ConversationModel {
     String? lastMessageText,
     DateTime? lastMessageAt,
     int? lastSenderId,
+    bool? isArchived,
   }) {
     return ConversationModel(
       id: id,
@@ -59,6 +63,7 @@ class ConversationModel {
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
       lastSenderId: lastSenderId ?? this.lastSenderId,
       unreadCount: unreadCount ?? this.unreadCount,
+      isArchived: isArchived ?? this.isArchived,
     );
   }
 }
@@ -69,6 +74,8 @@ class MessageModel {
   final int senderId;
   final String content;
   final DateTime? createdAt;
+  final bool isDeleted;
+  final MessageModel? replyTo;
 
   MessageModel({
     required this.id,
@@ -76,6 +83,8 @@ class MessageModel {
     required this.senderId,
     required this.content,
     this.createdAt,
+    this.isDeleted = false,
+    this.replyTo,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -87,6 +96,8 @@ class MessageModel {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
+      isDeleted: json['is_deleted'] == true || json['is_deleted'] == 1 || json['is_deleted'] == '1',
+      replyTo: json['reply_to'] != null ? MessageModel.fromJson(json['reply_to']) : null,
     );
   }
 

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/language_provider.dart';
 import '../../../services/api_service.dart';
 import '../../../models/user_model.dart';
 
@@ -39,6 +41,10 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   List<String> selectedSkills = [];
   List<String> invitedMembers = [];
   bool isCreating = false;
+
+  String tr(String en, String ar) {
+    return Provider.of<LanguageProvider>(context).isArabic ? ar : en;
+  }
 
   final availableSkills = [
     'Flutter',
@@ -94,7 +100,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Text(
-                        'Projects',
+                        tr('Projects', 'المشاريع'),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -104,14 +110,16 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Icon(
-                        Icons.chevron_right,
+                        Provider.of<LanguageProvider>(context).isArabic
+                            ? Icons.chevron_left
+                            : Icons.chevron_right,
                         size: 16,
                         color: Colors.grey.shade500,
                       ),
                     ),
-                    const Text(
-                      'Create New',
-                      style: TextStyle(
+                    Text(
+                      tr('Create New', 'إنشاء جديد'),
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
@@ -125,22 +133,25 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Create New Project',
-                            style: TextStyle(
+                            tr('Create New Project', 'إنشاء مشروع جديد'),
+                            style: const TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
                               color: Colors.black87,
                             ),
                           ),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Text(
-                            'Define the vision and assemble your team to\nget started.',
-                            style: TextStyle(
+                            tr(
+                              'Define the vision and assemble your team to\nget started.',
+                              'حدد رؤية المشروع واجمع فريقك للبدء بالعمل.',
+                            ),
+                            style: const TextStyle(
                               fontSize: 14,
                               color: Colors.black54,
                               height: 1.5,
@@ -153,10 +164,10 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                       children: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'Discard\nDraft',
+                          child: Text(
+                            tr('Discard\nDraft', 'تجاهل\nالمسودة'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.black87,
                               fontWeight: FontWeight.w500,
                               fontSize: 13,
@@ -176,8 +187,8 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                                   ),
                                 )
                               : const Icon(Icons.rocket_launch, size: 18),
-                          label: const Text(
-                            'Create\nProject',
+                          label: Text(
+                            tr('Create\nProject', 'إنشاء\nالمشروع'),
                             textAlign: TextAlign.center,
                           ),
                           style: ElevatedButton.styleFrom(
@@ -241,28 +252,31 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   Widget _buildProjectIdentityCard() {
     return _dialogCard(
       icon: Icons.info_outline,
-      title: 'Project Identity',
+      title: tr('Project Identity', 'هوية المشروع'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _dialogLabel('Project Name'),
+          _dialogLabel(tr('Project Name', 'اسم المشروع')),
           const SizedBox(height: 8),
           TextField(
             controller: nameController,
-            decoration: _dialogInput('e.g. Q4 Marketing Strategy'),
+            decoration: _dialogInput(tr('e.g. Q4 Marketing Strategy', 'مثال: استراتيجية التسويق للربع الرابع')),
           ),
           const SizedBox(height: 20),
-          _dialogLabel('Description'),
+          _dialogLabel(tr('Description', 'الوصف')),
           const SizedBox(height: 8),
           TextField(
             controller: descriptionController,
             maxLines: 4,
             decoration: _dialogInput(
-              'Describe the project goals, scope, and key objectives...',
+              tr(
+                'Describe the project goals, scope, and key objectives...',
+                'صف أهداف المشروع ونطاقه والغايات الرئيسية...',
+              ),
             ),
           ),
           const SizedBox(height: 20),
-          _dialogLabel('Skills'),
+          _dialogLabel(tr('Skills', 'المهارات المطلوبة')),
           const SizedBox(height: 8),
           if (selectedSkills.isNotEmpty) ...[
             Wrap(
@@ -314,7 +328,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Choose skills for your project',
+            tr('Choose skills for your project', 'اختر مهارات لمشروعك'),
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 12),
@@ -364,7 +378,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   controller: customSkillController,
                   style: const TextStyle(fontSize: 13),
                   decoration: _dialogInput(
-                    'Add custom skill...',
+                    tr('Add custom skill...', 'إضافة مهارة مخصصة...'),
                   ).copyWith(fillColor: Colors.white),
                   onSubmitted: _addCustomSkill,
                 ),
@@ -383,7 +397,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('Add', style: TextStyle(fontSize: 12)),
+                child: Text(tr('Add', 'إضافة'), style: const TextStyle(fontSize: 12)),
               ),
             ],
           ),
@@ -404,20 +418,20 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   Widget _buildVisibilityCard() {
     return _dialogCard(
       icon: Icons.visibility_outlined,
-      title: 'Visibility',
+      title: tr('Visibility', 'الرؤية والخصوصية'),
       child: Column(
         children: [
           _visibilityOption(
-            title: 'Public',
-            subtitle: 'Visible to everyone in the organization',
+            title: tr('Public', 'عام'),
+            subtitle: tr('Visible to everyone in the organization', 'مرئي للجميع في المؤسسة'),
             icon: Icons.public,
             value: 'public',
             onChanged: (val) => setState(() => visibility = val!),
           ),
           const SizedBox(height: 12),
           _visibilityOption(
-            title: 'Private',
-            subtitle: 'Only invited team members can access',
+            title: tr('Private', 'خاص'),
+            subtitle: tr('Only invited team members can access', 'يمكن للأعضاء المدعوين فقط الوصول إليه'),
             icon: Icons.lock_outline,
             value: 'private',
             onChanged: (val) => setState(() => visibility = val!),
@@ -430,13 +444,13 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
   Widget _buildInviteTeamCard() {
     return _dialogCard(
       icon: Icons.group_add_outlined,
-      title: 'Invite Team',
+      title: tr('Invite Team', 'دعوة فريق العمل'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Search by Username or Email',
-            style: TextStyle(
+          Text(
+            tr('Search by Username or Email', 'البحث عن طريق اسم المستخدم أو البريد الإلكتروني'),
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
@@ -471,7 +485,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                       controller: controller,
                       focusNode: focusNode,
                       style: const TextStyle(fontSize: 13),
-                      decoration: _dialogInput('e.g. @sarah_dev or email...').copyWith(
+                      decoration: _dialogInput(tr('e.g. @sarah_dev or email...', 'مثال: @sarah_dev أو البريد الإلكتروني...')).copyWith(
                         prefixIcon: Icon(
                           Icons.person_outline,
                           size: 18,
@@ -486,7 +500,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                   },
                   optionsViewBuilder: (context, onSelected, options) {
                     return Align(
-                      alignment: Alignment.topLeft,
+                      alignment: AlignmentDirectional.topStart,
                       child: Material(
                         elevation: 4,
                         borderRadius: BorderRadius.circular(8),
@@ -541,7 +555,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text('Add'),
+                child: Text(tr('Add', 'إضافة')),
               ),
             ],
           ),

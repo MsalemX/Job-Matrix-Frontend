@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../models/user_model.dart';
 import '../../models/task_model.dart';
@@ -56,6 +58,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final isAr = languageProvider.isArabic;
+
     if (_isLoading) {
       return const Scaffold(
           body: Center(child: CircularProgressIndicator()));
@@ -107,13 +112,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             const SizedBox(width: 32),
                             Expanded(
                               flex: 3,
-                              child: Column(
-                                children: [
-                                  _buildProjectsSection(_projects),
-                                  const SizedBox(height: 32),
-                                  _buildTasksSection(tasks),
-                                ],
-                              ),
+                              child: (_user?.profile?.publicActivity ?? true)
+                                  ? Column(
+                                      children: [
+                                        _buildProjectsSection(_projects),
+                                        const SizedBox(height: 32),
+                                        _buildTasksSection(tasks),
+                                      ],
+                                    )
+                                  : _buildPrivateAchievementsCard(isAr),
                             ),
                           ],
                         ),
@@ -247,30 +254,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             const SizedBox(width: 12),
                           ],
                           // Points badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withAlpha(40),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: Colors.amber.withAlpha(80)),
+                          if (_user?.profile?.publicActivity ?? true)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withAlpha(40),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: Colors.amber.withAlpha(80)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.star_rounded,
+                                      color: Colors.amber, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${_user?.profile?.points ?? 0} pts',
+                                    style: const TextStyle(
+                                        color: Colors.amber,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.star_rounded,
-                                    color: Colors.amber, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${_user?.profile?.points ?? 0} pts',
-                                  style: const TextStyle(
-                                      color: Colors.amber,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ],
@@ -620,6 +628,58 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   color: Colors.black54,
                   fontSize: 15,
                   fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivateAchievementsCard(bool isAr) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: const Color(0xFFCDD0CB).withOpacity(0.4),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF23393E).withOpacity(0.1)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF23393E).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              size: 64,
+              color: Color(0xFF23393E),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            isAr ? 'الأنشطة والإنجازات خاصة' : 'Private Activity & Achievements',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF23393E),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isAr
+                ? 'لقد قام هذا المستخدم بتعطيل عرض مشاريعه ومهامه ونقاطه للعامة.'
+                : 'This user has disabled public visibility for their projects, tasks, and points.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: const Color(0xFF23393E).withOpacity(0.7),
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );

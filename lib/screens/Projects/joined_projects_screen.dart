@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/language_provider.dart';
 import '../Dashboard/widgets/sidebar.dart';
 import '../Dashboard/widgets/header.dart';
 import '../../services/api_service.dart';
@@ -124,6 +126,8 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Row(
@@ -133,7 +137,7 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
             child: Column(
               children: [
                 Header(
-                  title: 'Joined Projects',
+                  title: languageProvider.translate('projects_joined_title'),
                   showCreateButton: false,
                   onProjectCreated: _loadProjects,
                   onSearch: _handleSearch,
@@ -166,15 +170,16 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
   }
 
   Widget _buildSubHeader() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Projects you have joined',
-              style: TextStyle(
+            Text(
+              languageProvider.translate('projects_joined_title'),
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -185,7 +190,7 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
                 OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.filter_list, size: 16),
-                  label: const Text('Filter'),
+                  label: Text(languageProvider.translate('filter')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: BorderSide(color: Colors.grey.shade300),
@@ -198,7 +203,7 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
                 OutlinedButton.icon(
                   onPressed: () {},
                   icon: const Icon(Icons.sort, size: 16),
-                  label: const Text('Sort'),
+                  label: Text(languageProvider.translate('sort')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.black87,
                     side: BorderSide(color: Colors.grey.shade300),
@@ -216,6 +221,7 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
   }
 
   Widget _buildProjectsGrid() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final projects = _getFilteredProjects();
 
     if (projects.isEmpty && !_isLoading) {
@@ -230,18 +236,18 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
                 color: Colors.grey.shade300,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'No joined projects yet',
-                style: TextStyle(
+              Text(
+                languageProvider.translate('no_joined_projects'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Colors.black54,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Projects you join will appear here!',
-                style: TextStyle(color: Colors.black38),
+              Text(
+                languageProvider.translate('projects_joined_sub'),
+                style: const TextStyle(color: Colors.black38),
               ),
             ],
           ),
@@ -255,6 +261,7 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
   }
 
   Widget _buildProjectRow(ProjectModel project) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     final sections = _projectSections[project.id] ?? [];
 
     return GestureDetector(
@@ -305,14 +312,14 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Member since: Today',
-                      style: TextStyle(fontSize: 12, color: Colors.black45),
+                    Text(
+                      languageProvider.translate('member_since_today'),
+                      style: const TextStyle(fontSize: 12, color: Colors.black45),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Team Members:',
-                      style: TextStyle(
+                    Text(
+                      languageProvider.translate('team_members'),
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF23393E),
@@ -325,7 +332,7 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
                               (p) {
                                 final imageUrl = p.user?.profile?.profileImage;
                                 return Container(
-                                  margin: const EdgeInsets.only(right: 6),
+                                  margin: const EdgeInsetsDirectional.only(end: 6),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
@@ -395,10 +402,11 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
   }
 
   Widget _buildSectionCard(SectionModel section) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
     return Container(
       width: 240,
       height: 240,
-      margin: const EdgeInsets.only(right: 24),
+      margin: const EdgeInsetsDirectional.only(end: 24),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(50),
@@ -431,9 +439,11 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Managing core components and delivery timelines...',
-            style: TextStyle(fontSize: 12, color: Colors.black45, height: 1.4),
+          Text(
+            languageProvider.isArabic
+                ? 'إدارة المكونات الأساسية وجداول التسليم للقسم...'
+                : 'Managing core components and delivery timelines...',
+            style: const TextStyle(fontSize: 12, color: Colors.black45, height: 1.4),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -441,9 +451,18 @@ class _JoinedProjectsScreenState extends State<JoinedProjectsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildSectionStat('TEAM', '${section.tasks.length}'),
-              _buildSectionStat('TASKS', '${section.tasks.length}/24'),
-              _buildSectionStat('DEADLINE', 'Today'),
+              _buildSectionStat(
+                languageProvider.translate('team_count_stat'),
+                '${section.tasks.length}',
+              ),
+              _buildSectionStat(
+                languageProvider.translate('tasks_count_stat'),
+                '${section.tasks.length}/24',
+              ),
+              _buildSectionStat(
+                languageProvider.translate('deadline_stat'),
+                languageProvider.translate('today'),
+              ),
             ],
           ),
         ],
